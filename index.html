@@ -1,331 +1,897 @@
 <!DOCTYPE html>
 <html lang="ms">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard Bersepadu Keahlian IKRAM</title>
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-    <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
-    </style>
+<meta charset="UTF-8">
+<title>Tuntutan Perbelanjaan</title>
+<style>
+  :root{
+    --green:#c9dcc4;
+    --green-dark:#8fae86;
+    --border:#333;
+    --grey-row:#f2f2f2;
+  }
+  *{box-sizing:border-box;}
+  body{
+    font-family:'Georgia','Times New Roman',serif;
+    background:#e9e9f2;
+    margin:0;
+    padding:30px 0;
+  }
+  .toolbar{
+    max-width:800px;
+    margin:0 auto 16px auto;
+    display:flex;
+    gap:10px;
+    justify-content:flex-end;
+    font-family:Arial, sans-serif;
+  }
+  .toolbar button{
+    padding:10px 18px;
+    font-size:14px;
+    border:none;
+    border-radius:6px;
+    cursor:pointer;
+    background:var(--green-dark);
+    color:#fff;
+    font-weight:bold;
+  }
+  .toolbar button.secondary{
+    background:#888;
+  }
+  .voucher{
+    max-width:800px;
+    margin:0 auto;
+    background:#fff;
+    border:2px solid var(--border);
+    padding:30px 35px;
+  }
+  .header{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    border-bottom:2px solid var(--border);
+    padding-bottom:14px;
+    margin-bottom:14px;
+  }
+  .org-info{flex:1;}
+  .org-info .line{
+    font-size:13px;
+    margin:3px 0;
+    display:flex;
+    align-items:baseline;
+    gap:4px;
+  }
+  .org-info .line label{
+    white-space:nowrap;
+  }
+  .org-info input, .editable{
+    border:none;
+    border-bottom:1px dotted #999;
+    font-family:inherit;
+    font-size:13px;
+    flex:1;
+    padding:1px 2px;
+    background:transparent;
+  }
+  .org-name-input{
+    font-size:20px;
+    font-weight:bold;
+    border:none;
+    border-bottom:1px dotted #999;
+    width:100%;
+    font-family:inherit;
+    margin-bottom:8px;
+    background:transparent;
+    text-transform:uppercase;
+  }
+  .org-sub-input{
+    font-size:14px;
+    font-weight:bold;
+    border:none;
+    border-bottom:1px dotted #999;
+    width:100%;
+    font-family:inherit;
+    margin-bottom:4px;
+    background:transparent;
+  }
+  .pv-box{
+    background:var(--green);
+    border:1px solid var(--border);
+    padding:14px 20px;
+    text-align:center;
+    font-weight:bold;
+    font-size:15px;
+    min-width:190px;
+  }
+  .pv-fields{
+    margin-top:10px;
+    font-size:12px;
+    font-weight:normal;
+    text-align:left;
+  }
+  .pv-fields .pv-row{
+    display:flex;
+    justify-content:space-between;
+    gap:6px;
+    margin:5px 0;
+  }
+  .pv-fields label{
+    font-weight:bold;
+    white-space:nowrap;
+  }
+  .pv-fields input{
+    border:none;
+    border-bottom:1px dotted #556b52;
+    background:transparent;
+    font-family:inherit;
+    font-size:12px;
+    text-align:right;
+    width:100px;
+  }
+  .meta{
+    display:flex;
+    justify-content:space-between;
+    margin-bottom:14px;
+    font-size:13px;
+  }
+  .meta .left{flex:1;}
+  .meta .right{
+    text-align:right;
+  }
+  .meta .row{
+    margin:4px 0;
+    display:flex;
+    gap:6px;
+  }
+  .meta .right .row{
+    justify-content:flex-end;
+  }
+  .meta label{font-weight:bold;white-space:nowrap;}
+  .meta input{
+    border:none;
+    border-bottom:1px dotted #999;
+    font-family:inherit;
+    font-size:13px;
+    background:transparent;
+  }
+  .claimant-block{
+    border:1px solid var(--border);
+    padding:10px 14px;
+    margin-bottom:16px;
+    font-size:13px;
+  }
+  .claimant-row{
+    display:flex;
+    gap:8px;
+    align-items:baseline;
+    margin-bottom:8px;
+  }
+  .claimant-row:last-child{margin-bottom:0;}
+  .claimant-row label{font-weight:bold;white-space:nowrap;}
+  .claimant-row input{
+    flex:1;
+    border:none;
+    border-bottom:1px solid var(--border);
+    font-family:inherit;
+    font-size:13px;
+    background:transparent;
+    padding:2px 4px;
+  }
+  table{
+    width:100%;
+    border-collapse:collapse;
+    border:1px solid var(--border);
+    margin-bottom:16px;
+  }
+  th{
+    background:var(--green);
+    border:1px solid var(--border);
+    padding:8px;
+    font-size:13px;
+    text-transform:uppercase;
+  }
+  td{
+    border:1px solid var(--border);
+    padding:6px 8px;
+    font-size:13px;
+  }
+  tbody tr:nth-child(even){background:var(--grey-row);}
+  td.no{
+    text-align:center;
+    width:32px;
+  }
+  td input{
+    width:100%;
+    border:none;
+    font-family:inherit;
+    font-size:13px;
+    background:transparent;
+  }
+  td.amount input{
+    text-align:right;
+  }
+  .total-row td{
+    background:var(--green);
+    font-weight:bold;
+  }
+  .total-row td.label{
+    text-align:center;
+    text-transform:uppercase;
+  }
+  .total-row td.amount input{
+    font-weight:bold;
+  }
+  .row-controls{
+    text-align:center;
+    margin:-10px 0 20px 0;
+  }
+  .row-controls button{
+    font-size:12px;
+    padding:5px 10px;
+    border:1px solid var(--border);
+    background:#fff;
+    border-radius:4px;
+    cursor:pointer;
+    margin:0 4px;
+    font-family:Arial, sans-serif;
+  }
+
+  /* --- Lampiran resit (muat naik sekaligus) --- */
+  .receipts-block{
+    border:1px solid var(--border);
+    padding:12px 14px;
+    margin-bottom:20px;
+  }
+  .receipts-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:10px;
+  }
+  .receipts-header .title{
+    font-weight:bold;
+    font-size:13px;
+    text-transform:uppercase;
+  }
+  .upload-btn{
+    cursor:pointer;
+    font-size:13px;
+    border:1px solid var(--border);
+    border-radius:5px;
+    padding:6px 12px;
+    background:#fafafa;
+    white-space:nowrap;
+    font-family:Arial, sans-serif;
+    font-weight:bold;
+  }
+  .upload-btn:hover{background:#eee;}
+  .receipt-note{
+    font-size:11px;
+    color:#777;
+    font-family:Arial, sans-serif;
+    margin-bottom:10px;
+  }
+  .receipt-grid{
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+  }
+  .receipt-thumb{
+    width:80px;
+    text-align:center;
+    font-family:Arial, sans-serif;
+    position:relative;
+  }
+  .receipt-thumb .box{
+    width:80px;
+    height:80px;
+    border:1px solid #ccc;
+    border-radius:5px;
+    background-size:cover;
+    background-position:center;
+    background-color:#f5f5f5;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:28px;
+  }
+  .receipt-thumb .name{
+    font-size:10px;
+    color:#555;
+    margin-top:3px;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+  .receipt-thumb .remove-x{
+    position:absolute;
+    top:-6px;
+    right:-6px;
+    background:#a33;
+    color:#fff;
+    border:none;
+    border-radius:50%;
+    width:20px;
+    height:20px;
+    font-size:13px;
+    line-height:1;
+    cursor:pointer;
+  }
+  .receipt-empty{
+    font-size:12px;
+    color:#999;
+    font-family:Arial, sans-serif;
+  }
+
+  .modal-overlay{
+    position:fixed;
+    top:0; left:0;
+    width:100%; height:100%;
+    background:rgba(0,0,0,0.75);
+    display:none;
+    align-items:center;
+    justify-content:center;
+    z-index:999;
+  }
+  .modal-overlay.open{display:flex;}
+  .modal-content{
+    max-width:90%;
+    max-height:90%;
+    background:#fff;
+    padding:14px;
+    border-radius:8px;
+    position:relative;
+    text-align:center;
+  }
+  .modal-content img{
+    max-width:100%;
+    max-height:80vh;
+    display:block;
+  }
+  .modal-close{
+    position:absolute;
+    top:-16px;
+    right:-16px;
+    background:#333;
+    color:#fff;
+    border-radius:50%;
+    width:32px;
+    height:32px;
+    border:none;
+    cursor:pointer;
+    font-size:16px;
+    font-family:Arial, sans-serif;
+  }
+  .modal-filename{
+    font-size:12px;
+    color:#555;
+    margin-top:8px;
+    font-family:Arial, sans-serif;
+  }
+
+  .declaration{
+    font-size:12px;
+    font-style:italic;
+    margin-bottom:18px;
+    border-top:1px dashed #999;
+    padding-top:10px;
+  }
+  .signatures{
+    display:flex;
+    justify-content:space-between;
+    margin-top:20px;
+    font-size:13px;
+  }
+  .sig-block{
+    flex:1;
+    text-align:center;
+    margin:0 12px;
+  }
+  .sig-label{
+    font-weight:bold;
+    font-size:13px;
+    margin-bottom:45px;
+  }
+  .sig-line{
+    border-top:1px solid var(--border);
+    padding-top:6px;
+  }
+  .sig-block input{
+    width:100%;
+    text-align:center;
+    border:none;
+    background:transparent;
+    font-family:inherit;
+    font-size:13px;
+    padding:2px;
+  }
+
+  @media print{
+    body{background:#fff;padding:0;}
+    .toolbar{display:none;}
+    .voucher{border:2px solid #000;box-shadow:none;max-width:100%;}
+    .row-controls{display:none;}
+    input{border-bottom:none !important;}
+    .records-panel{display:none;}
+    .upload-btn, .receipt-note, .remove-x{display:none !important;}
+    .modal-overlay{display:none !important;}
+    .receipt-thumb .box{border:1px solid #000;}
+  }
+  .records-panel{
+    max-width:800px;
+    margin:24px auto 0 auto;
+    background:#fff;
+    border:2px solid var(--border);
+    padding:20px 24px;
+    font-family:Arial, sans-serif;
+  }
+  .records-panel h3{
+    margin:0 0 12px 0;
+    font-size:16px;
+    font-family:'Georgia','Times New Roman',serif;
+  }
+  .records-panel table{
+    border:1px solid #ccc;
+  }
+  .records-panel th{
+    background:#eee;
+    font-size:12px;
+    text-transform:none;
+  }
+  .records-panel td{
+    font-size:12px;
+  }
+  .records-panel button{
+    font-size:11px;
+    padding:4px 8px;
+    border:1px solid var(--border);
+    background:#fff;
+    border-radius:4px;
+    cursor:pointer;
+    margin-right:4px;
+  }
+  .records-panel button.danger{
+    color:#a33;
+    border-color:#a33;
+  }
+</style>
 </head>
-<body class="p-4 md:p-10">
-    <div class="max-w-7xl mx-auto">
-        <!-- Main Elegant Header -->
-        <div class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white rounded-2xl p-6 md:p-8 shadow-xl mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border border-indigo-900/40">
-            <div>
-                <h1 class="text-2xl md:text-3xl font-black tracking-tight bg-gradient-to-r from-white via-indigo-100 to-indigo-200 bg-clip-text text-transparent">IKRAM Kawasan Perak Tengah</h1>
-                <p class="text-indigo-200/80 mt-1 text-sm md:text-base font-medium">Dashboard Bersepadu: Pecahan Modul Keahlian, Status Kemaskini Profil & Analisis Kewangan 2026</p>
-            </div>
-            <span class="bg-indigo-600/30 text-indigo-300 text-xs px-3 py-1.5 font-bold rounded-full border border-indigo-500/30 whitespace-nowrap">
-                Tahun Kewangan & Operasi: 2026
-            </span>
-        </div>
+<body>
 
-        <!-- SECTION 1: PECAHAN STATUS KEMASKINI KOMITMEN MENGIKUT KATEGORI -->
-        <div class="mb-10">
-            <h2 class="text-xl font-extrabold text-slate-800 mb-6 flex items-center gap-2">
-                <span class="p-1.5 bg-indigo-100 text-indigo-700 rounded-xl text-sm shadow-sm">📊</span> 1. Status Kemaskini Komitmen Mengikut Kategori Modul
-            </h2>
-            
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-4">
-                <!-- Card AA03 -->
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between hover:shadow-md transition duration-200">
-                    <div>
-                        <div class="flex justify-between items-start">
-                            <span class="bg-indigo-50 text-indigo-700 text-xs font-bold px-3 py-1 rounded-md">Modul AA03</span>
-                            <span class="text-xs text-slate-400 font-medium">Ahli Aktif</span>
-                        </div>
-                        <div class="mt-4 grid grid-cols-3 gap-2 text-center border-b border-slate-100 pb-4">
-                            <div>
-                                <span class="text-[11px] text-slate-400 font-medium block">Sasaran</span>
-                                <span class="text-xl font-black text-slate-800">24</span>
-                            </div>
-                            <div>
-                                <span class="text-[11px] text-emerald-600 font-medium block">Kemaskini</span>
-                                <span class="text-xl font-black text-emerald-600">19</span>
-                            </div>
-                            <div>
-                                <span class="text-[11px] text-amber-600 font-medium block">Baki</span>
-                                <span class="text-xl font-black text-amber-600">5</span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="mt-4">
-                        <div class="flex justify-between text-xs font-bold text-slate-500 mb-1">
-                            <span>Kadar Capaian</span>
-                            <span class="text-indigo-600">79.17%</span>
-                        </div>
-                        <div class="w-full bg-slate-100 rounded-full h-2">
-                            <div class="bg-indigo-600 h-2 rounded-full" style="width: 79.17%"></div>
-                        </div>
-                    </div>
-                </div>
+<div class="toolbar">
+  <button class="secondary" onclick="addRow()">+ Tambah Baris</button>
+  <button class="secondary" id="saveBtn" onclick="saveRecord()">💾 Simpan Rekod</button>
+  <button onclick="window.print()">🖨️ Cetak / Simpan sebagai PDF</button>
+</div>
 
-                <!-- Card AA04 -->
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between hover:shadow-md transition duration-200">
-                    <div>
-                        <div class="flex justify-between items-start">
-                            <span class="bg-emerald-50 text-emerald-700 text-xs font-bold px-3 py-1 rounded-md">Modul AA04</span>
-                            <span class="text-xs text-emerald-600 font-semibold flex items-center gap-1">✓ Selesai</span>
-                        </div>
-                        <div class="mt-4 grid grid-cols-3 gap-2 text-center border-b border-slate-100 pb-4">
-                            <div>
-                                <span class="text-[11px] text-slate-400 font-medium block">Sasaran</span>
-                                <span class="text-xl font-black text-slate-800">7</span>
-                            </div>
-                            <div>
-                                <span class="text-[11px] text-emerald-600 font-medium block">Kemaskini</span>
-                                <span class="text-xl font-black text-emerald-600">7</span>
-                            </div>
-                            <div>
-                                <span class="text-[11px] text-slate-300 font-medium block">Baki</span>
-                                <span class="text-xl font-black text-slate-300">0</span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="mt-4">
-                        <div class="flex justify-between text-xs font-bold text-slate-500 mb-1">
-                            <span>Kadar Capaian</span>
-                            <span class="text-emerald-600">100%</span>
-                        </div>
-                        <div class="w-full bg-slate-100 rounded-full h-2">
-                            <div class="bg-emerald-600 h-2 rounded-full" style="width: 100%"></div>
-                        </div>
-                    </div>
-                </div>
+<div class="voucher">
 
-                <!-- Card AT05 -->
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between hover:shadow-md transition duration-200">
-                    <div>
-                        <div class="flex justify-between items-start">
-                            <span class="bg-teal-50 text-teal-700 text-xs font-bold px-3 py-1 rounded-md">Modul AT05</span>
-                            <span class="text-xs text-emerald-600 font-semibold flex items-center gap-1">✓ Selesai</span>
-                        </div>
-                        <div class="mt-4 grid grid-cols-3 gap-2 text-center border-b border-slate-100 pb-4">
-                            <div>
-                                <span class="text-[11px] text-slate-400 font-medium block">Sasaran</span>
-                                <span class="text-xl font-black text-slate-800">10</span>
-                            </div>
-                            <div>
-                                <span class="text-[11px] text-emerald-600 font-medium block">Kemaskini</span>
-                                <span class="text-xl font-black text-emerald-600">10</span>
-                            </div>
-                            <div>
-                                <span class="text-[11px] text-slate-300 font-medium block">Baki</span>
-                                <span class="text-xl font-black text-slate-300">0</span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="mt-4">
-                        <div class="flex justify-between text-xs font-bold text-slate-500 mb-1">
-                            <span>Kadar Capaian</span>
-                            <span class="text-teal-600">100%</span>
-                        </div>
-                        <div class="w-full bg-slate-100 rounded-full h-2">
-                            <div class="bg-teal-600 h-2 rounded-full" style="width: 100%"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- SECTION 2: RINGKASAN & ANALISIS UTAMA KEWANGAN -->
-        <div class="mb-10">
-            <h2 class="text-xl font-extrabold text-slate-800 mb-6 flex items-center gap-2">
-                <span class="p-1.5 bg-emerald-100 text-emerald-700 rounded-xl text-sm shadow-sm">💸</span> 2. Ringkasan & Trend Analisis Kewangan Keseluruhan
-            </h2>
-
-            <!-- Financial KPIs -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition">
-                    <span class="text-slate-400 font-bold text-xs uppercase block tracking-wider">Jumlah Dana Terkumpul</span>
-                    <h3 class="text-3xl font-black text-slate-800 mt-2">RM 3,900.00</h3>
-                    <span class="text-xs text-emerald-600 font-semibold mt-2 block">✓ 100% Selesai & Diluluskan</span>
-                </div>
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition">
-                    <span class="text-slate-400 font-bold text-xs uppercase block tracking-wider">Bilangan Transaksi (Resit)</span>
-                    <h3 class="text-3xl font-black text-slate-800 mt-2">52 Kali</h3>
-                    <span class="text-xs text-slate-400 mt-2 block">Saluran Utama: Billplz Gateway</span>
-                </div>
-                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100 hover:shadow-md transition">
-                    <span class="text-slate-400 font-bold text-xs uppercase block tracking-wider">Bilangan Ahli Membayar</span>
-                    <h3 class="text-3xl font-black text-slate-800 mt-2">14 Orang</h3>
-                    <span class="text-xs text-indigo-600 font-semibold mt-2 block">Purata Sumbangan: RM 75.00</span>
-                </div>
-            </div>
-
-            <!-- Financial Trend Chart Single Layout -->
-            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 mb-6">
-                <h4 class="text-slate-800 font-bold text-base mb-4">Trend Kutipan Bulanan Keseluruhan (RM)</h4>
-                <div class="relative h-72 md:h-96">
-                    <canvas id="monthlyChart"></canvas>
-                </div>
-            </div>
-        </div>
-
-        <!-- SECTION 3: DETAILED BREAKDOWN TABLE BY CATEGORY -->
-        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden mb-10">
-            <div class="p-6 border-b border-slate-100">
-                <h3 class="text-xl font-extrabold text-slate-800 flex items-center gap-2">
-                    <span class="p-1.5 bg-indigo-50 text-indigo-700 rounded-xl text-sm">📋</span> 3. Maklumat Terperinci Akaun Komitmen & Tunggakan Mengikut Kategori Modul
-                </h3>
-                <p class="text-xs text-slate-400 mt-1">Data bersepadu tempoh bulan (TB = 6.61 bulan) dikemaskini sehingga Julai 2026</p>
-            </div>
-            <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse text-sm">
-                    <thead>
-                        <tr class="bg-slate-950 text-white font-semibold text-xs uppercase tracking-wider">
-                            <th class="p-4 border border-slate-800">Metrik / Petunjuk</th>
-                            <th class="p-4 border border-slate-800 text-center bg-indigo-950">Modul AA03</th>
-                            <th class="p-4 border border-slate-800 text-center bg-emerald-950">Modul AA04</th>
-                            <th class="p-4 border border-slate-800 text-center bg-teal-950">Modul AT05</th>
-                            <th class="p-4 border border-slate-800 text-center bg-slate-800">Jumlah Keseluruhan</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-slate-200 text-slate-700 font-medium">
-                        <tr class="hover:bg-slate-50/80 transition">
-                            <td class="p-4 font-semibold text-slate-800">1. Jumlah Sasaran Ahli Kawasan</td>
-                            <td class="p-4 text-center font-mono">24 Orang</td>
-                            <td class="p-4 text-center font-mono">7 Orang</td>
-                            <td class="p-4 text-center font-mono">10 Orang</td>
-                            <td class="p-4 text-center font-mono font-bold text-slate-900 bg-slate-50/50">41 Orang</td>
-                        </tr>
-                        <tr class="hover:bg-slate-50/80 transition bg-slate-50/30">
-                            <td class="p-4 font-semibold text-slate-800">2. Bilangan Ahli Telah Kemaskini Komitmen</td>
-                            <td class="p-4 text-center font-mono text-indigo-600">19 Orang</td>
-                            <td class="p-4 text-center font-mono text-emerald-600">7 Orang</td>
-                            <td class="p-4 text-center font-mono text-teal-600">10 Orang</td>
-                            <td class="p-4 text-center font-mono font-bold text-emerald-700 bg-slate-50/50">36 Orang</td>
-                        </tr>
-                        <tr class="hover:bg-slate-50/80 transition">
-                            <td class="p-4 font-semibold text-slate-800">3. Kadar Komitmen Bulanan Dipersetujui</td>
-                            <td class="p-4 text-center font-mono text-slate-900 font-bold">RM 755.00</td>
-                            <td class="p-4 text-center font-mono text-slate-900 font-bold">RM 825.00</td>
-                            <td class="p-4 text-center font-mono text-slate-900 font-bold">RM 1,310.00</td>
-                            <td class="p-4 text-center font-mono font-bold text-slate-900 bg-slate-50/50">RM 2,890.00</td>
-                        </tr>
-                        <tr class="hover:bg-slate-50/80 transition bg-indigo-50/10">
-                            <td class="p-4 font-semibold text-indigo-950">4. Jumlah Sasaran Nilai Komitmen (TB * Bulanan)</td>
-                            <td class="p-4 text-center font-mono text-indigo-950">RM 4,991.00</td>
-                            <td class="p-4 text-center font-mono text-emerald-950">RM 5,453.00</td>
-                            <td class="p-4 text-center font-mono text-teal-950">RM 8,659.00</td>
-                            <td class="p-4 text-center font-mono font-bold text-indigo-900 bg-indigo-50/20">RM 19,103.00</td>
-                        </tr>
-                        <tr class="hover:bg-slate-50/80 transition">
-                            <td class="p-4 font-semibold text-slate-800">5. Bilangan Ahli Yang Sudah Membuat Bayaran</td>
-                            <td class="p-4 text-center font-mono">14 Orang</td>
-                            <td class="p-4 text-center font-mono">6 Orang</td>
-                            <td class="p-4 text-center font-mono">9 Orang</td>
-                            <td class="p-4 text-center font-mono font-bold text-slate-900 bg-slate-50/50">29 Orang</td>
-                        </tr>
-                        <tr class="hover:bg-slate-50/80 transition bg-emerald-50/10">
-                            <td class="p-4 font-semibold text-emerald-800">6. Jumlah Kutipan Sumbangan Tetap Terkumpul</td>
-                            <td class="p-4 text-center font-mono font-bold text-indigo-700">RM 3,900.00</td>
-                            <td class="p-4 text-center font-mono font-bold text-emerald-700">RM 4,460.00</td>
-                            <td class="p-4 text-center font-mono font-bold text-teal-700">RM 13,900.00</td>
-                            <td class="p-4 text-center font-mono font-black text-emerald-800 bg-emerald-50/20">RM 22,260.00</td>
-                        </tr>
-                        <tr class="hover:bg-slate-50/80 transition">
-                            <td class="p-4 font-semibold text-slate-800">7. Bilangan Ahli / Transaksi Tertunggak</td>
-                            <td class="p-4 text-center font-mono text-amber-700">13 Ahli</td>
-                            <td class="p-4 text-center font-mono text-amber-700">2 Ahli</td>
-                            <td class="p-4 text-center font-mono text-amber-700">3 Ahli</td>
-                            <td class="p-4 text-center font-mono font-bold text-amber-800 bg-slate-50/50">18 Ahli</td>
-                        </tr>
-                        <tr class="hover:bg-slate-50/80 transition bg-rose-50/10">
-                            <td class="p-4 font-semibold text-rose-800">8. Jumlah Nilai Tunggakan Semasa (RM)</td>
-                            <td class="p-4 text-center font-mono font-bold text-rose-600">RM 3,541.00</td>
-                            <td class="p-4 text-center font-mono font-bold text-rose-600">RM 2,340.00</td>
-                            <td class="p-4 text-center font-mono font-bold text-rose-600">RM 940.00</td>
-                            <td class="p-4 text-center font-mono font-black text-rose-700 bg-rose-50/20">RM 6,821.00</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- SECTION 4: NEW CHART FOR SECTION 3 DATA AT THE VERY BOTTOM -->
-        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 mb-6">
-            <h3 class="text-lg font-bold text-slate-800 mb-4 uppercase tracking-wider flex items-center gap-2">
-                🎨 Visualisasi Perbandingan Kewangan Kewangan Komitmen, Kutipan Sebenar & Tunggakan
-            </h3>
-            <div class="relative h-80 md:h-100">
-                <canvas id="financialComparisonChart"></canvas>
-            </div>
-        </div>
+  <div class="header">
+    <div class="org-info">
+      <input class="org-name-input" id="orgName" value="Pertubuhan IKRAM Malaysia (IKRAM)">
+      <input class="org-sub-input" id="orgSub" value="Kawasan Perak Tengah">
     </div>
+    <div class="pv-box">
+      TUNTUTAN<br>PERBELANJAAN
+      <div class="pv-fields">
+        <div class="pv-row"><label>No. Tuntutan:</label><input id="pvNumber" value="TP202401001"></div>
+        <div class="pv-row"><label>Tarikh:</label><input type="date" id="pvDate" value=""></div>
+      </div>
+    </div>
+  </div>
 
-    <!-- Script triggers for charts -->
-    <script>
-        // Monthly Financial Trend
-        const ctxMonthly = document.getElementById('monthlyChart').getContext('2d');
-        new Chart(ctxMonthly, {
-            type: 'line',
-            data: {
-                labels: ["01 - Jan", "02 - Feb", "03 - Mar", "04 - Apr", "05 - May", "06 - Jun", "07 - Jul"],
-                datasets: [{
-                    label: 'Jumlah Kutipan (RM)',
-                    data: [780, 220, 745, 645, 585, 445, 480],
-                    borderColor: '#4f46e5',
-                    backgroundColor: 'rgba(79, 70, 229, 0.08)',
-                    borderWidth: 3,
-                    tension: 0.25,
-                    fill: true,
-                    pointBackgroundColor: '#4f46e5',
-                    pointRadius: 5,
-                    pointHoverRadius: 7
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: { y: { beginAtZero: true } }
-            }
-        });
+  <div class="claimant-block">
+    <div class="claimant-row">
+      <label>Nama Pemohon:</label>
+      <input id="claimantName" placeholder="Nama penuh pemohon">
+      <label style="margin-left:10px;">Jawatan:</label>
+      <input id="claimantPosition" placeholder="Jawatan / Jabatan">
+    </div>
+    <div class="claimant-row">
+      <label>No. Akaun Bank:</label>
+      <input id="accNoInput" placeholder="No. akaun bank">
+      <label style="margin-left:10px;">Nama Bank:</label>
+      <input id="bankName" placeholder="Nama bank">
+    </div>
+    <div class="claimant-row">
+      <label>Tujuan Tuntutan:</label>
+      <input id="purposeInput" placeholder="cth: Perjalanan program, perbelanjaan pejabat, dsb.">
+    </div>
+  </div>
 
-        // Multi-Bar Financial Comparison Chart for No. 3
-        const ctxCompare = document.getElementById('financialComparisonChart').getContext('2d');
-        new Chart(ctxCompare, {
-            type: 'bar',
-            data: {
-                labels: ['Modul AA03', 'Modul AA04', 'Modul AT05'],
-                datasets: [
-                    {
-                        label: 'Jumlah Sasaran Komitmen (RM)',
-                        data: [4991, 5453, 8659],
-                        backgroundColor: '#4f46e5', // Indigo
-                        borderRadius: 5
-                    },
-                    {
-                        label: 'Kutipan Terkumpul Sebenar (RM)',
-                        data: [3900, 4460, 13900],
-                        backgroundColor: '#10b981', // Emerald
-                        borderRadius: 5
-                    },
-                    {
-                        label: 'Jumlah Nilai Tunggakan (RM)',
-                        data: [3541, 2340, 940],
-                        backgroundColor: '#f43f5e', // Rose/Red
-                        borderRadius: 5
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { position: 'top', labels: { boxWidth: 12, font: { weight: 'bold' } } }
-                },
-                scales: {
-                    y: { beginAtZero: true, title: { display: true, text: 'Nilai dalam RM' } }
-                }
-            }
+  <table id="itemTable">
+    <thead>
+      <tr>
+        <th style="width:32px;">No.</th>
+        <th>Butiran Perbelanjaan</th>
+        <th style="width:120px;">Amaun (RM)</th>
+      </tr>
+    </thead>
+    <tbody id="tbody">
+      <tr><td class="no">1</td><td><input value=""></td><td class="amount"><input value="" oninput="calcTotal()"></td></tr>
+      <tr><td class="no">2</td><td><input value=""></td><td class="amount"><input value="" oninput="calcTotal()"></td></tr>
+      <tr><td class="no">3</td><td><input value=""></td><td class="amount"><input value="" oninput="calcTotal()"></td></tr>
+      <tr><td class="no">4</td><td><input value=""></td><td class="amount"><input value="" oninput="calcTotal()"></td></tr>
+      <tr><td class="no">5</td><td><input value=""></td><td class="amount"><input value="" oninput="calcTotal()"></td></tr>
+    </tbody>
+    <tfoot>
+      <tr class="total-row">
+        <td colspan="2" class="label">JUMLAH TUNTUTAN</td>
+        <td class="amount"><input id="totalField" value="0.00" readonly></td>
+      </tr>
+    </tfoot>
+  </table>
+
+  <div class="receipts-block">
+    <div class="receipts-header">
+      <div class="title">Lampiran Resit</div>
+      <label class="upload-btn">📎 Muat Naik Resit
+        <input type="file" id="receiptFileInput" accept="image/*,.pdf" multiple hidden onchange="handleReceiptUpload(this)">
+      </label>
+    </div>
+    <div class="receipt-note">Boleh pilih beberapa keping resit sekaligus (gambar atau PDF, had ~3MB setiap fail). Klik pratonton untuk lihat penuh.</div>
+    <div class="receipt-grid" id="receiptGrid">
+      <div class="receipt-empty" id="receiptEmpty">Belum ada resit dimuat naik.</div>
+    </div>
+  </div>
+
+  <div class="declaration">
+    Saya mengesahkan bahawa perbelanjaan di atas adalah benar dan resit/bukti perbelanjaan yang berkaitan disertakan bersama borang ini.
+  </div>
+
+  <div class="signatures">
+    <div class="sig-block">
+      <div class="sig-label">Tandatangan Pemohon</div>
+      <div class="sig-line">
+        <input id="sigClaimant" value="" placeholder="Nama & Tarikh">
+      </div>
+    </div>
+    <div class="sig-block">
+      <div class="sig-label">Disemak oleh</div>
+      <div class="sig-line">
+        <input id="sigChecked" value="" placeholder="Nama & Tarikh">
+      </div>
+    </div>
+    <div class="sig-block">
+      <div class="sig-label">Diluluskan oleh</div>
+      <div class="sig-line">
+        <input id="sigApproved" value="" placeholder="Nama & Tarikh">
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="records-panel">
+  <h3>Senarai Rekod Tersimpan</h3>
+  <table id="recordsTable">
+    <thead>
+      <tr>
+        <th>No. Tuntutan</th>
+        <th>Tarikh</th>
+        <th>Nama Pemohon</th>
+        <th style="width:90px;">Jumlah (RM)</th>
+        <th>Disemak oleh</th>
+        <th>Diluluskan oleh</th>
+        <th style="width:140px;">Tindakan</th>
+      </tr>
+    </thead>
+    <tbody id="recordsBody">
+      <tr><td colspan="7" style="text-align:center;color:#777;">Memuatkan...</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="modal-overlay" id="receiptModal" onclick="if(event.target===this) closeModal()">
+  <div class="modal-content">
+    <button class="modal-close" onclick="closeModal()">×</button>
+    <img id="modalImg" src="" alt="Resit" style="display:none;">
+    <div id="modalFilename" class="modal-filename"></div>
+  </div>
+</div>
+
+<script>
+let receipts = []; // { id, name, type, data }
+
+function calcTotal(){
+  const rows = document.querySelectorAll('#tbody tr');
+  let total = 0;
+  rows.forEach(r=>{
+    const inp = r.querySelector('.amount input');
+    const val = parseFloat(inp.value.replace(/,/g,''));
+    if(!isNaN(val)) total += val;
+  });
+  document.getElementById('totalField').value = total.toFixed(2);
+}
+
+function addRow(){
+  const tbody = document.getElementById('tbody');
+  const count = tbody.querySelectorAll('tr').length + 1;
+  const tr = document.createElement('tr');
+  tr.innerHTML = `<td class="no">${count}</td><td><input value=""></td><td class="amount"><input value="" oninput="calcTotal()"></td>`;
+  tbody.appendChild(tr);
+}
+
+const MAX_RECEIPT_BYTES = 3 * 1024 * 1024; // ~3MB setiap fail
+
+function handleReceiptUpload(input){
+  const files = Array.from(input.files || []);
+  if(!files.length) return;
+
+  let rejected = [];
+  const readers = files.map(file=>{
+    return new Promise(resolve=>{
+      if(file.size > MAX_RECEIPT_BYTES){
+        rejected.push(file.name);
+        resolve(null);
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = e=>{
+        resolve({
+          id: Date.now().toString() + Math.random().toString(36).slice(2,7),
+          name: file.name,
+          type: file.type,
+          data: e.target.result
         });
-    </script>
+      };
+      reader.onerror = ()=> resolve(null);
+      reader.readAsDataURL(file);
+    });
+  });
+
+  Promise.all(readers).then(results=>{
+    results.filter(Boolean).forEach(r=> receipts.push(r));
+    if(rejected.length){
+      alert('Fail berikut terlalu besar (had ~3MB) dan tidak dimuat naik:\n' + rejected.join('\n'));
+    }
+    renderReceipts();
+    input.value = '';
+  });
+}
+
+function renderReceipts(){
+  const grid = document.getElementById('receiptGrid');
+  grid.innerHTML = '';
+  if(!receipts.length){
+    grid.innerHTML = '<div class="receipt-empty" id="receiptEmpty">Belum ada resit dimuat naik.</div>';
+    return;
+  }
+  receipts.forEach(r=>{
+    const thumb = document.createElement('div');
+    thumb.className = 'receipt-thumb';
+    const isImage = (r.type || '').startsWith('image/');
+    thumb.innerHTML = `
+      <button type="button" class="remove-x" onclick="removeReceipt('${r.id}')">×</button>
+      <div class="box" style="${isImage ? `background-image:url(${r.data})` : ''}" onclick="viewReceipt('${r.id}')">${isImage ? '' : '📄'}</div>
+      <div class="name" title="${(r.name||'').replace(/"/g,'&quot;')}">${r.name || ''}</div>
+    `;
+    grid.appendChild(thumb);
+  });
+}
+
+function viewReceipt(id){
+  const r = receipts.find(x=>x.id===id);
+  if(!r) return;
+  if((r.type||'').startsWith('image/')){
+    document.getElementById('modalImg').src = r.data;
+    document.getElementById('modalImg').style.display = 'block';
+    document.getElementById('modalFilename').textContent = r.name;
+    document.getElementById('receiptModal').classList.add('open');
+  }else{
+    const w = window.open();
+    if(w){
+      w.document.write(`<iframe src="${r.data}" style="border:none;width:100%;height:100vh;"></iframe>`);
+    }else{
+      alert('Sila benarkan pop-up untuk melihat fail PDF, atau muat turun semula.');
+    }
+  }
+}
+
+function closeModal(){
+  document.getElementById('receiptModal').classList.remove('open');
+  document.getElementById('modalImg').src = '';
+}
+
+function removeReceipt(id){
+  if(!confirm('Buang resit ini?')) return;
+  receipts = receipts.filter(r=>r.id !== id);
+  renderReceipts();
+}
+
+function collectData(){
+  const items = [];
+  document.querySelectorAll('#tbody tr').forEach(r=>{
+    const desc = r.children[1].querySelector('input').value;
+    const amt = r.children[2].querySelector('input').value;
+    if(desc || amt) items.push({desc, amt});
+  });
+  return {
+    orgName: document.getElementById('orgName').value,
+    orgSub: document.getElementById('orgSub').value,
+    pvNumber: document.getElementById('pvNumber').value,
+    pvDate: document.getElementById('pvDate').value,
+    claimantName: document.getElementById('claimantName').value,
+    claimantPosition: document.getElementById('claimantPosition').value,
+    accNo: document.getElementById('accNoInput').value,
+    bankName: document.getElementById('bankName').value,
+    purpose: document.getElementById('purposeInput').value,
+    items,
+    total: document.getElementById('totalField').value,
+    sigClaimant: document.getElementById('sigClaimant').value,
+    sigChecked: document.getElementById('sigChecked').value,
+    sigApproved: document.getElementById('sigApproved').value,
+    receipts
+  };
+}
+
+function fillData(data){
+  document.getElementById('orgName').value = data.orgName || '';
+  document.getElementById('orgSub').value = data.orgSub || '';
+  document.getElementById('pvNumber').value = data.pvNumber || '';
+  document.getElementById('pvDate').value = data.pvDate || '';
+  document.getElementById('claimantName').value = data.claimantName || '';
+  document.getElementById('claimantPosition').value = data.claimantPosition || '';
+  document.getElementById('accNoInput').value = data.accNo || '';
+  document.getElementById('bankName').value = data.bankName || '';
+  document.getElementById('purposeInput').value = data.purpose || '';
+  document.getElementById('sigClaimant').value = data.sigClaimant || '';
+  document.getElementById('sigChecked').value = data.sigChecked || '';
+  document.getElementById('sigApproved').value = data.sigApproved || '';
+
+  const tbody = document.getElementById('tbody');
+  tbody.innerHTML = '';
+  const rows = (data.items && data.items.length) ? data.items : [{desc:'',amt:''}];
+  rows.forEach((it, i)=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td class="no">${i+1}</td><td><input value="${(it.desc||'').replace(/"/g,'&quot;')}"></td><td class="amount"><input value="${it.amt||''}" oninput="calcTotal()"></td>`;
+    tbody.appendChild(tr);
+  });
+  calcTotal();
+
+  receipts = data.receipts || [];
+  renderReceipts();
+}
+
+function getIndex(){
+  try{
+    const raw = localStorage.getItem('tuntutan-index');
+    return raw ? JSON.parse(raw) : [];
+  }catch(e){
+    console.error('Storage error:', e);
+    return [];
+  }
+}
+
+function getNextClaimNumber(){
+  const index = getIndex();
+  let maxNum = 202401000;
+  index.forEach(r=>{
+    const digits = (r.pv || '').replace(/\D/g, '');
+    const n = parseInt(digits, 10);
+    if(!isNaN(n) && n > maxNum) maxNum = n;
+  });
+  return 'TP' + String(maxNum + 1);
+}
+
+function isClaimDuplicate(pv, excludeId){
+  const index = getIndex();
+  return index.some(r => r.pv === pv && r.id !== excludeId);
+}
+
+function saveRecord(){
+  const btn = document.getElementById('saveBtn');
+  const originalText = btn.textContent;
+  try{
+    const data = collectData();
+
+    if(isClaimDuplicate(data.pvNumber)){
+      const nextPv = getNextClaimNumber();
+      alert(`No. Tuntutan ${data.pvNumber} sudah wujud dalam rekod. No. ditukar secara automatik kepada ${nextPv}.`);
+      data.pvNumber = nextPv;
+      document.getElementById('pvNumber').value = nextPv;
+    }
+
+    const id = Date.now().toString();
+    localStorage.setItem('tuntutan:' + id, JSON.stringify(data));
+
+    const index = getIndex();
+    index.unshift({
+      id,
+      pv: data.pvNumber,
+      date: data.pvDate,
+      claimantName: data.claimantName,
+      total: data.total,
+      sigChecked: data.sigChecked,
+      sigApproved: data.sigApproved
+    });
+    localStorage.setItem('tuntutan-index', JSON.stringify(index));
+
+    renderList();
+    document.getElementById('pvNumber').value = getNextClaimNumber();
+    btn.textContent = 'Tersimpan ✓';
+  }catch(e){
+    console.error('Storage error:', e);
+    btn.textContent = 'Gagal simpan';
+    alert('Simpanan gagal. Pastikan anda membuka fail ini terus (bukan dalam mod Private/Incognito), dan cuba lagi.');
+  }
+  setTimeout(()=>{ btn.textContent = originalText; }, 1500);
+}
+
+function loadRecord(id){
+  try{
+    const raw = localStorage.getItem('tuntutan:' + id);
+    if(raw){
+      fillData(JSON.parse(raw));
+      window.scrollTo({top:0, behavior:'smooth'});
+    }else{
+      alert('Rekod tidak dijumpai.');
+    }
+  }catch(e){
+    console.error('Storage error:', e);
+    alert('Rekod tidak dijumpai.');
+  }
+}
+
+function deleteRecord(id){
+  if(!confirm('Padam rekod ini?')) return;
+  try{
+    localStorage.removeItem('tuntutan:' + id);
+    let index = getIndex();
+    index = index.filter(r => r.id !== id);
+    localStorage.setItem('tuntutan-index', JSON.stringify(index));
+    renderList();
+  }catch(e){
+    console.error('Storage error:', e);
+  }
+}
+
+function renderList(){
+  const body = document.getElementById('recordsBody');
+  const index = getIndex();
+  if(!index.length){
+    body.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#777;">Tiada rekod tersimpan lagi.</td></tr>';
+    return;
+  }
+  body.innerHTML = '';
+  index.forEach(r=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${r.pv || '-'}</td>
+      <td>${r.date || '-'}</td>
+      <td>${r.claimantName || '-'}</td>
+      <td style="text-align:right;">${r.total || '0.00'}</td>
+      <td>${r.sigChecked || '-'}</td>
+      <td>${r.sigApproved || '-'}</td>
+      <td>
+        <button onclick="loadRecord('${r.id}')">Muat</button>
+        <button class="danger" onclick="deleteRecord('${r.id}')">Padam</button>
+      </td>`;
+    body.appendChild(tr);
+  });
+}
+
+renderList();
+
+(function setNextClaimNumber(){
+  const pvField = document.getElementById('pvNumber');
+  if(pvField){
+    pvField.value = getNextClaimNumber();
+  }
+})();
+
+(function setDefaultDate(){
+  const dateField = document.getElementById('pvDate');
+  if(dateField && !dateField.value){
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    dateField.value = `${yyyy}-${mm}-${dd}`;
+  }
+})();
+</script>
+
 </body>
 </html>
