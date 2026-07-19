@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Bersepadu Keahlian IKRAM</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+    </style>
+</head>
+<body class="p-4 md:p-10">
+    <div class="max-w-7xl mx-auto">
+        <!-- Main Elegant Header -->
+        <div class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white rounded-2xl p-6 md:p-8 shadow-xl mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border border-indigo-900/40">
+            <div>
+                <h1 class="text-2xl md:text-3xl font-black tracking-tight bg-gradient-to-r from-white via-indigo-100 to-indigo-200 bg-clip-text text-transparent">IKRAM Kawasan Perak Tengah</h1>
+                <p class="text-indigo-200/80 mt-1 text-sm md:text-base font-medium">Dashboard Bersepadu: Pecahan Modul Keahlian, Status Kemaskini Profil & Analisis Kewangan 2026</p>
+            </div>
+            <span class="bg-indigo-600/30 text-indigo-300 text-xs px-3 py-1.5 font-bold rounded-full border border-indigo-500/30 whitespace-nowrap">
+                Tahun Kewangan & Operasi: 2026
+            </span>
+        </div>
+
+        <!-- SECTION 1: PECAHAN STATUS KEMASKINI KOMITMEN MENGIKUT KATEGORI -->
+        <div class="mb-10">
+            <h2 class="text-xl font-extrabold text-slate-800 mb-6 flex items-center gap-2">
+                <span class="p-1.5 bg-indigo-100 text-indigo-700 rounded-xl text-sm shadow-sm">📊</span> 1. Status Kemaskini Komitmen Mengikut Kategori Modul
+            </h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-4">
+                <!-- Card AA03 -->
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between hover:shadow-md transition duration-200">
+                    <div>
+                        <div class="flex justify-between items-start">
+                            <span class="bg-indigo-50 text-indigo-700 text-xs font-bold px-3 py-1 rounded-md">Modul AA03</span>
+                            <span class="text-xs text-slate-400 font-medium">Ahli Aktif</span>
+                        </div>
+                        <div class="mt-4 grid grid-cols-3 gap-2 text-center border-b border-slate-100 pb-4">
+                            <div>
+                                <span class="text-[11px] text-slate-400 font-medium block">Sasaran</span>
+                                <span class="text-xl font-black text-slate-800">24</span>
+                            </div>
+                            <div>
+                                <span class="text-[11px] text-emerald-600 font-medium block">Kemaskini</span>
+                                <span class="text-xl font-black text-emerald-600">19</span>
+                            </div>
+                            <div>
+                                <span class="text-[11px] text-amber-600 font-medium block">Baki</span>
+                                <span class="text-xl font-black text-amber-600">5</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <div class="flex justify-between text-xs font-bold text-slate-500 mb-1">
+                            <span>Kadar Capaian</span>
+                            <span class="text-indigo-600">79.17%</span>
+                        </div>
+                        <div class="w-full bg-slate-100 rounded-full h-2">
+                            <div class="bg-indigo-600 h-2 rounded-full" style="width: 79.17%"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Card AA04 -->
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between hover:shadow-md transition duration-200">
+                    <div>
+                        <div class="flex justify-between items-start">
+                            <span class="bg-emerald-50 text-emerald-700 text-xs font-bold px-3 py-1 rounded-md">Modul AA04</span>
+                            <span class="text-xs text-emerald-600 font-semibold flex items-center gap-1">✓ Selesai</span>
+                        </div>
+                        <div class="mt-4 grid grid-cols-3 gap-2 text-center border-b border-slate-100 pb-4">
+                            <div>
+                                <span class="text-[11px] text-slate-400 font-medium block">Sasaran</span>
+                                <span class="text-xl font-black text-slate-800">7</span>
+                            </div>
+                            <div>
+                                <span class="text-[11px] text-emerald-600 font-medium block">Kemaskini</span>
+                                <span class="text-xl font-black text-emerald-600">7</span>
+                            </div>
+                            <div>
+                                <span class="text-[11px] text-slate-300 font-medium block">Baki</span>
+                                <span class="text-xl font-black text-slate-300">0</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <div class="flex justify-between text-xs font-bold text-slate-500 mb-1">
+                            <span>Kadar Capaian</span>
+                            <span class="text-emerald-600">100%</span>
+                        </div>
+                        <div class="w-full bg-slate-100 rounded-full h-2">
+                            <div class="bg-emerald-600 h-2 rounded-full" style="width: 100%"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Card AT05 -->
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between hover:shadow-md transition duration-200">
+                    <div>
+                        <div class="flex justify-between items-start">
+                            <span class="bg-teal-50 text-teal-700 text-xs font-bold px-3 py-1 rounded-md">Modul AT05</span>
+                            <span class="text-xs text-emerald-600 font-semibold flex items-center gap-1">✓ Selesai</span>
+                        </div>
+                        <div class="mt-4 grid grid-cols-3 gap-2 text-center border-b border-slate-100 pb-4">
+                            <div>
+                                <span class="text-[11px] text-slate-400 font-medium block">Sasaran</span>
+                                <span class="text-xl font-black text-slate-800">10</span>
+                            </div>
+                            <div>
+                                <span class="text-[11px] text-emerald-600 font-medium block">Kemaskini</span>
+                                <span class="text-xl font-black text-emerald-600">10</span>
+                            </div>
+                            <div>
+                                <span class="text-[11px] text-slate-300 font-medium block">Baki</span>
+                                <span class="text-xl font-black text-slate-300">0</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <div class="flex justify-between text-xs font-bold text-slate-500 mb-1">
+                            <span>Kadar Capaian</span>
+                            <span class="text-teal-600">100%</span>
+                        </div>
+                        <div class="w-full bg-slate-100 rounded-full h-2">
+                            <div class="bg-teal-600 h-2 rounded-full" style="width: 100%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SECTION 2: RINGKASAN & ANALISIS UTAMA KEWANGAN -->
+        <div class="mb-10">
+            <h2 class="text-xl font-extrabold text-slate-800 mb-6 flex items-center gap-2">
+                <span class="p-1.5 bg-emerald-100 text-emerald-700 rounded-xl text-sm shadow-sm">💸</span> 2. Ringkasan & Trend Analisis Kewangan Keseluruhan
+            </h2>
+
+            <!-- Financial KPIs -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition">
+                    <span class="text-slate-400 font-bold text-xs uppercase block tracking-wider">Jumlah Dana Terkumpul</span>
+                    <h3 class="text-3xl font-black text-slate-800 mt-2">RM 3,900.00</h3>
+                    <span class="text-xs text-emerald-600 font-semibold mt-2 block">✓ 100% Selesai & Diluluskan</span>
+                </div>
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition">
+                    <span class="text-slate-400 font-bold text-xs uppercase block tracking-wider">Bilangan Transaksi (Resit)</span>
+                    <h3 class="text-3xl font-black text-slate-800 mt-2">52 Kali</h3>
+                    <span class="text-xs text-slate-400 mt-2 block">Saluran Utama: Billplz Gateway</span>
+                </div>
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100 hover:shadow-md transition">
+                    <span class="text-slate-400 font-bold text-xs uppercase block tracking-wider">Bilangan Ahli Membayar</span>
+                    <h3 class="text-3xl font-black text-slate-800 mt-2">14 Orang</h3>
+                    <span class="text-xs text-indigo-600 font-semibold mt-2 block">Purata Sumbangan: RM 75.00</span>
+                </div>
+            </div>
+
+            <!-- Financial Trend Chart Single Layout -->
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 mb-6">
+                <h4 class="text-slate-800 font-bold text-base mb-4">Trend Kutipan Bulanan Keseluruhan (RM)</h4>
+                <div class="relative h-72 md:h-96">
+                    <canvas id="monthlyChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- SECTION 3: DETAILED BREAKDOWN TABLE BY CATEGORY -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden mb-10">
+            <div class="p-6 border-b border-slate-100">
+                <h3 class="text-xl font-extrabold text-slate-800 flex items-center gap-2">
+                    <span class="p-1.5 bg-indigo-50 text-indigo-700 rounded-xl text-sm">📋</span> 3. Maklumat Terperinci Akaun Komitmen & Tunggakan Mengikut Kategori Modul
+                </h3>
+                <p class="text-xs text-slate-400 mt-1">Data bersepadu tempoh bulan (TB = 6.61 bulan) dikemaskini sehingga Julai 2026</p>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse text-sm">
+                    <thead>
+                        <tr class="bg-slate-950 text-white font-semibold text-xs uppercase tracking-wider">
+                            <th class="p-4 border border-slate-800">Metrik / Petunjuk</th>
+                            <th class="p-4 border border-slate-800 text-center bg-indigo-950">Modul AA03</th>
+                            <th class="p-4 border border-slate-800 text-center bg-emerald-950">Modul AA04</th>
+                            <th class="p-4 border border-slate-800 text-center bg-teal-950">Modul AT05</th>
+                            <th class="p-4 border border-slate-800 text-center bg-slate-800">Jumlah Keseluruhan</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-200 text-slate-700 font-medium">
+                        <tr class="hover:bg-slate-50/80 transition">
+                            <td class="p-4 font-semibold text-slate-800">1. Jumlah Sasaran Ahli Kawasan</td>
+                            <td class="p-4 text-center font-mono">24 Orang</td>
+                            <td class="p-4 text-center font-mono">7 Orang</td>
+                            <td class="p-4 text-center font-mono">10 Orang</td>
+                            <td class="p-4 text-center font-mono font-bold text-slate-900 bg-slate-50/50">41 Orang</td>
+                        </tr>
+                        <tr class="hover:bg-slate-50/80 transition bg-slate-50/30">
+                            <td class="p-4 font-semibold text-slate-800">2. Bilangan Ahli Telah Kemaskini Komitmen</td>
+                            <td class="p-4 text-center font-mono text-indigo-600">19 Orang</td>
+                            <td class="p-4 text-center font-mono text-emerald-600">7 Orang</td>
+                            <td class="p-4 text-center font-mono text-teal-600">10 Orang</td>
+                            <td class="p-4 text-center font-mono font-bold text-emerald-700 bg-slate-50/50">36 Orang</td>
+                        </tr>
+                        <tr class="hover:bg-slate-50/80 transition">
+                            <td class="p-4 font-semibold text-slate-800">3. Kadar Komitmen Bulanan Dipersetujui</td>
+                            <td class="p-4 text-center font-mono text-slate-900 font-bold">RM 755.00</td>
+                            <td class="p-4 text-center font-mono text-slate-900 font-bold">RM 825.00</td>
+                            <td class="p-4 text-center font-mono text-slate-900 font-bold">RM 1,310.00</td>
+                            <td class="p-4 text-center font-mono font-bold text-slate-900 bg-slate-50/50">RM 2,890.00</td>
+                        </tr>
+                        <tr class="hover:bg-slate-50/80 transition bg-indigo-50/10">
+                            <td class="p-4 font-semibold text-indigo-950">4. Jumlah Sasaran Nilai Komitmen (TB * Bulanan)</td>
+                            <td class="p-4 text-center font-mono text-indigo-950">RM 4,991.00</td>
+                            <td class="p-4 text-center font-mono text-emerald-950">RM 5,453.00</td>
+                            <td class="p-4 text-center font-mono text-teal-950">RM 8,659.00</td>
+                            <td class="p-4 text-center font-mono font-bold text-indigo-900 bg-indigo-50/20">RM 19,103.00</td>
+                        </tr>
+                        <tr class="hover:bg-slate-50/80 transition">
+                            <td class="p-4 font-semibold text-slate-800">5. Bilangan Ahli Yang Sudah Membuat Bayaran</td>
+                            <td class="p-4 text-center font-mono">14 Orang</td>
+                            <td class="p-4 text-center font-mono">6 Orang</td>
+                            <td class="p-4 text-center font-mono">9 Orang</td>
+                            <td class="p-4 text-center font-mono font-bold text-slate-900 bg-slate-50/50">29 Orang</td>
+                        </tr>
+                        <tr class="hover:bg-slate-50/80 transition bg-emerald-50/10">
+                            <td class="p-4 font-semibold text-emerald-800">6. Jumlah Kutipan Sumbangan Tetap Terkumpul</td>
+                            <td class="p-4 text-center font-mono font-bold text-indigo-700">RM 3,900.00</td>
+                            <td class="p-4 text-center font-mono font-bold text-emerald-700">RM 4,460.00</td>
+                            <td class="p-4 text-center font-mono font-bold text-teal-700">RM 13,900.00</td>
+                            <td class="p-4 text-center font-mono font-black text-emerald-800 bg-emerald-50/20">RM 22,260.00</td>
+                        </tr>
+                        <tr class="hover:bg-slate-50/80 transition">
+                            <td class="p-4 font-semibold text-slate-800">7. Bilangan Ahli / Transaksi Tertunggak</td>
+                            <td class="p-4 text-center font-mono text-amber-700">13 Ahli</td>
+                            <td class="p-4 text-center font-mono text-amber-700">2 Ahli</td>
+                            <td class="p-4 text-center font-mono text-amber-700">3 Ahli</td>
+                            <td class="p-4 text-center font-mono font-bold text-amber-800 bg-slate-50/50">18 Ahli</td>
+                        </tr>
+                        <tr class="hover:bg-slate-50/80 transition bg-rose-50/10">
+                            <td class="p-4 font-semibold text-rose-800">8. Jumlah Nilai Tunggakan Semasa (RM)</td>
+                            <td class="p-4 text-center font-mono font-bold text-rose-600">RM 3,541.00</td>
+                            <td class="p-4 text-center font-mono font-bold text-rose-600">RM 2,340.00</td>
+                            <td class="p-4 text-center font-mono font-bold text-rose-600">RM 940.00</td>
+                            <td class="p-4 text-center font-mono font-black text-rose-700 bg-rose-50/20">RM 6,821.00</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- SECTION 4: NEW CHART FOR SECTION 3 DATA AT THE VERY BOTTOM -->
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 mb-6">
+            <h3 class="text-lg font-bold text-slate-800 mb-4 uppercase tracking-wider flex items-center gap-2">
+                🎨 Visualisasi Perbandingan Kewangan Kewangan Komitmen, Kutipan Sebenar & Tunggakan
+            </h3>
+            <div class="relative h-80 md:h-100">
+                <canvas id="financialComparisonChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Script triggers for charts -->
+    <script>
+        // Monthly Financial Trend
+        const ctxMonthly = document.getElementById('monthlyChart').getContext('2d');
+        new Chart(ctxMonthly, {
+            type: 'line',
+            data: {
+                labels: ["01 - Jan", "02 - Feb", "03 - Mar", "04 - Apr", "05 - May", "06 - Jun", "07 - Jul"],
+                datasets: [{
+                    label: 'Jumlah Kutipan (RM)',
+                    data: [780, 220, 745, 645, 585, 445, 480],
+                    borderColor: '#4f46e5',
+                    backgroundColor: 'rgba(79, 70, 229, 0.08)',
+                    borderWidth: 3,
+                    tension: 0.25,
+                    fill: true,
+                    pointBackgroundColor: '#4f46e5',
+                    pointRadius: 5,
+                    pointHoverRadius: 7
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true } }
+            }
+        });
+
+        // Multi-Bar Financial Comparison Chart for No. 3
+        const ctxCompare = document.getElementById('financialComparisonChart').getContext('2d');
+        new Chart(ctxCompare, {
+            type: 'bar',
+            data: {
+                labels: ['Modul AA03', 'Modul AA04', 'Modul AT05'],
+                datasets: [
+                    {
+                        label: 'Jumlah Sasaran Komitmen (RM)',
+                        data: [4991, 5453, 8659],
+                        backgroundColor: '#4f46e5', // Indigo
+                        borderRadius: 5
+                    },
+                    {
+                        label: 'Kutipan Terkumpul Sebenar (RM)',
+                        data: [3900, 4460, 13900],
+                        backgroundColor: '#10b981', // Emerald
+                        borderRadius: 5
+                    },
+                    {
+                        label: 'Jumlah Nilai Tunggakan (RM)',
+                        data: [3541, 2340, 940],
+                        backgroundColor: '#f43f5e', // Rose/Red
+                        borderRadius: 5
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'top', labels: { boxWidth: 12, font: { weight: 'bold' } } }
+                },
+                scales: {
+                    y: { beginAtZero: true, title: { display: true, text: 'Nilai dalam RM' } }
+                }
+            }
+        });
+    </script>
+</body>
+</html>
