@@ -63,6 +63,133 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
   throw new Error(JSON.stringify(errInfo));
 }
 
+// Helper to convert number to Malay words for official payment voucher
+export function numberToMalayWords(num: number): string {
+  const units = ["", "Satu", "Dua", "Tiga", "Empat", "Lima", "Enam", "Tujuh", "Lapan", "Sembilan"];
+  const teens = ["Sepuluh", "Sebelas", "Dua Belas", "Tiga Belas", "Empat Belas", "Lima Belas", "Enam Belas", "Tujuh Belas", "Lapan Belas", "Sembilan Belas"];
+  const tens = ["", "Sepuluh", "Dua Puluh", "Tiga Puluh", "Empat Puluh", "Lima Puluh", "Enam Puluh", "Tujuh Puluh", "Lapan Puluh", "Sembilan Puluh"];
+
+  const formatHundreds = (n: number): string => {
+    let str = "";
+    if (n >= 100) {
+      const h = Math.floor(n / 100);
+      if (h === 1) {
+        str += "Seratus ";
+      } else {
+        str += units[h] + " Ratus ";
+      }
+      n %= 100;
+    }
+    if (n >= 10 && n < 20) {
+      str += teens[n - 10] + " ";
+    } else {
+      if (n >= 20) {
+        str += tens[Math.floor(n / 10)] + " ";
+        n %= 10;
+      }
+      if (n > 0) {
+        str += units[n] + " ";
+      }
+    }
+    return str.trim();
+  };
+
+  const ringgit = Math.floor(num);
+  const sen = Math.round((num - ringgit) * 100);
+
+  let result = "";
+
+  if (ringgit === 0) {
+    result = "Kosong Ringgit";
+  } else {
+    let temp = ringgit;
+    const parts = [];
+    const scale = ["", "Ribu", "Juta"];
+    let i = 0;
+    while (temp > 0) {
+      const part = temp % 1000;
+      if (part > 0) {
+        let partStr = formatHundreds(part);
+        if (i === 1 && part === 1) {
+          partStr = "Se";
+        }
+        parts.push(partStr + (scale[i] ? (part === 1 && i === 1 ? "ribu" : " " + scale[i]) : ""));
+      }
+      temp = Math.floor(temp / 1000);
+      i++;
+    }
+    result = parts.reverse().join(" ").trim() + " Ringgit";
+    result = result.replace(/\s+/g, " ");
+  }
+
+  if (sen > 0) {
+    let senStr = "";
+    if (sen >= 10 && sen < 20) {
+      senStr = teens[sen - 10];
+    } else {
+      if (sen >= 20) {
+        senStr = tens[Math.floor(sen / 10)];
+        if (sen % 10 > 0) {
+          senStr += " " + units[sen % 10];
+        }
+      } else {
+        senStr = units[sen];
+      }
+    }
+    result += " Dan " + senStr + " Sen";
+  }
+
+  return result + " Sahaja";
+}
+
+// Compress base64 image using canvas to ensure total file sizes are well within Firestore limits (max 1MB per document)
+export function compressImage(base64Str: string, maxWidth = 800, maxHeight = 800, quality = 0.5): Promise<string> {
+  return new Promise((resolve) => {
+    // Only compress actual data URL images
+    if (!base64Str.startsWith("data:image/")) {
+      resolve(base64Str);
+      return;
+    }
+    const img = new Image();
+    img.src = base64Str;
+    img.onload = () => {
+      let width = img.width;
+      let height = img.height;
+
+      // Calculate new dimensions while maintaining aspect ratio
+      if (width > height) {
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        }
+      } else {
+        if (height > maxHeight) {
+          width = Math.round((width * maxHeight) / height);
+          height = maxHeight;
+        }
+      }
+
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        resolve(base64Str);
+        return;
+      }
+
+      ctx.drawImage(img, 0, 0, width, height);
+      // Export as a lightweight JPEG to save space
+      const compressedDataUrl = canvas.toDataURL("image/jpeg", quality);
+      resolve(compressedDataUrl);
+    };
+    img.onerror = () => {
+      resolve(base64Str);
+    };
+  });
+}
+
 export default function App() {
   // --- STATE ---
   const [orgName, setOrgName] = useState("IKRAM Perak Tengah");
@@ -109,6 +236,8 @@ export default function App() {
     return localStorage.getItem("sistem_tuntutan_admin_email") || "";
   });
   const [adminEmailInput, setAdminEmailInput] = useState<string>("");
+  const [printingVoucherRecord, setPrintingVoucherRecord] = useState<ClaimRecord | null>(null);
+  const [isPrintActive, setIsPrintActive] = useState<boolean>(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -137,6 +266,23 @@ export default function App() {
     // Load existing records from Firestore as first choice, falling back to local
     fetchFirestoreRecords();
   }, []);
+
+  // Print effect for beautiful payment voucher
+  useEffect(() => {
+    if (isPrintActive && printingVoucherRecord) {
+      const timer = setTimeout(() => {
+        try {
+          window.focus();
+          window.print();
+        } catch (e) {
+          console.error("Gagal cetak:", e);
+        } finally {
+          setIsPrintActive(false);
+        }
+      }, 800);
+      return () => clearTimeout(timer);
+    }
+  }, [isPrintActive, printingVoucherRecord]);
 
   const generateNewPV = () => {
     const rand = Math.floor(100000 + Math.random() * 900000);
@@ -247,10 +393,23 @@ export default function App() {
       setIsDbLoading(true);
       try {
         const docRef = doc(db, "claims", activeRecordId);
-        await updateDoc(docRef, {
-          isLocked: newLockState,
-          adminNote: finalNote
-        });
+        
+        // Check if we have the full record in local state list
+        const localRecord = records.find(r => r.id === activeRecordId);
+        if (localRecord) {
+          // If we have local record, setDoc with merge: true restores it fully if missing, or updates it safely
+          await setDoc(docRef, {
+            ...localRecord,
+            isLocked: newLockState,
+            adminNote: finalNote
+          }, { merge: true });
+        } else {
+          // Fallback to updateDoc if not found in records state
+          await updateDoc(docRef, {
+            isLocked: newLockState,
+            adminNote: finalNote
+          });
+        }
         
         triggerNotification(
           newLockState 
@@ -282,9 +441,18 @@ export default function App() {
     setIsDbLoading(true);
     try {
       const docRef = doc(db, "claims", activeRecordId);
-      await updateDoc(docRef, {
-        adminNote: formAdminNote
-      });
+      const localRecord = records.find(r => r.id === activeRecordId);
+      
+      if (localRecord) {
+        await setDoc(docRef, {
+          ...localRecord,
+          adminNote: formAdminNote
+        }, { merge: true });
+      } else {
+        await updateDoc(docRef, {
+          adminNote: formAdminNote
+        });
+      }
       
       triggerNotification("Nota admin berjaya dikemaskini di awan!", "success");
       await fetchFirestoreRecords();
@@ -411,16 +579,34 @@ export default function App() {
       return;
     }
 
+    triggerNotification(`Sedang memproses & mampatkan ${validImageFiles.length} resit...`, "info");
+
     validImageFiles.forEach(file => {
       const reader = new FileReader();
       reader.onload = (e) => {
         if (e.target?.result) {
-          const newAttachment: ReceiptAttachment = {
-            id: Math.random().toString(36).substring(2, 9) + Date.now(),
-            name: file.name,
-            data: e.target.result as string
-          };
-          setReceipts(prev => [...prev, newAttachment]);
+          const rawData = e.target.result as string;
+          // Compressing to max 800px width/height and 0.5 quality produces highly legible images under 60KB
+          compressImage(rawData, 800, 800, 0.5)
+            .then(compressedData => {
+              const newAttachment: ReceiptAttachment = {
+                id: Math.random().toString(36).substring(2, 9) + Date.now(),
+                name: file.name,
+                data: compressedData
+              };
+              setReceipts(prev => [...prev, newAttachment]);
+              triggerNotification(`Berjaya mampat & menambah: ${file.name}`, "success");
+            })
+            .catch((err) => {
+              console.error("Mampatan gagal, guna fail asal:", err);
+              const newAttachment: ReceiptAttachment = {
+                id: Math.random().toString(36).substring(2, 9) + Date.now(),
+                name: file.name,
+                data: rawData
+              };
+              setReceipts(prev => [...prev, newAttachment]);
+              triggerNotification(`Berjaya menambah: ${file.name}`, "success");
+            });
         }
       };
       reader.onerror = () => {
@@ -428,8 +614,6 @@ export default function App() {
       };
       reader.readAsDataURL(file);
     });
-    
-    triggerNotification(`Berjaya memproses ${validImageFiles.length} resit`, "success");
   };
 
   const handleDrop = (e: DragEvent<HTMLDivElement>) => {
@@ -849,6 +1033,24 @@ export default function App() {
             <Printer className="w-3 h-3 text-white" />
             <span>Cetak PDF</span>
           </button>
+
+          {isAdminLoggedIn && activeRecordId && (
+            <button 
+              onClick={() => {
+                const rec = records.find(r => r.id === activeRecordId);
+                if (rec) {
+                  setPrintingVoucherRecord(rec);
+                } else {
+                  triggerNotification("Ralat: Tidak dapat menemui rekod aktif.", "error");
+                }
+              }}
+              className="bg-amber-600 hover:bg-amber-700 text-white px-3 py-1.5 rounded text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+              title="Jana Baucar Bayaran rasmi untuk rekod ini"
+            >
+              <ShieldCheck className="w-3.5 h-3.5 text-white" />
+              <span>Jana Baucar</span>
+            </button>
+          )}
         </div>
       </header>
 
@@ -1133,7 +1335,7 @@ export default function App() {
                   disabled={isReadOnly}
                   onChange={(e) => setReviewedBy(e.target.value)}
                   className="w-full text-center text-xs font-bold text-slate-800 bg-transparent border-b border-dashed border-slate-300 hover:border-slate-500 focus:border-blue-500 focus:bg-white py-1 outline-none transition-all rounded mb-0.5 italic disabled:opacity-75 disabled:cursor-not-allowed"
-                  placeholder="Nama Bendahari"
+                  placeholder="Ulasan / Tindakan"
                 />
                 <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block mt-0.5">Disemak (Bendahari)</span>
               </div>
@@ -1145,7 +1347,7 @@ export default function App() {
                   disabled={isReadOnly}
                   onChange={(e) => setApprovedBy(e.target.value)}
                   className="w-full text-center text-xs font-bold text-slate-800 bg-transparent border-b border-dashed border-slate-300 hover:border-slate-500 focus:border-blue-500 focus:bg-white py-1 outline-none transition-all rounded mb-0.5 italic disabled:opacity-75 disabled:cursor-not-allowed"
-                  placeholder="Nama YDP / Ketua"
+                  placeholder="Ulasan / Tindakan"
                 />
                 <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block mt-0.5">Diluluskan (YDP)</span>
               </div>
@@ -1272,10 +1474,7 @@ export default function App() {
                 <div className="w-10 h-10 bg-amber-50 border border-amber-200 rounded-full flex items-center justify-center text-amber-500 mb-3 animate-pulse">
                   <Lock className="w-5 h-5" />
                 </div>
-                <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-1">Mod Admin Dikunci</h4>
-                <p className="text-[10px] text-slate-400 max-w-[200px] leading-relaxed mb-4">
-                  Sila log masuk dengan E-mel Admin anda untuk melihat semua rekod pengguna lain di pangkalan data awan.
-                </p>
+                <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-4">Mod Admin Dikunci</h4>
                 <form onSubmit={handleAdminLogin} className="w-full space-y-2">
                   <div>
                     <input 
@@ -1284,9 +1483,7 @@ export default function App() {
                       value={adminEmailInput}
                       onChange={(e) => setAdminEmailInput(e.target.value)}
                       className="w-full text-center text-xs font-mono border border-slate-200 focus:border-blue-500 focus:bg-white bg-slate-50 py-1.5 px-3 rounded outline-none transition-all text-slate-800"
-                      placeholder="Masukkan e-mel admin..."
                     />
-                    <span className="text-[8px] text-slate-400 mt-1 block">Contoh: budakampung7@gmail.com</span>
                   </div>
                   <button
                     type="submit"
@@ -1376,19 +1573,33 @@ export default function App() {
                           <span className="text-xs font-mono font-black text-slate-900 leading-none">
                             RM {rec.totalAmount.toFixed(2)}
                           </span>
-                          {!rec.isLocked || isAdminLoggedIn ? (
-                            <button
-                              onClick={(e) => handleDeleteRecord(rec.id, e)}
-                              className="text-[9px] font-extrabold text-slate-400 hover:text-rose-600 transition-colors cursor-pointer"
-                              title="Padam rekod secara kekal"
-                            >
-                              Padam
-                            </button>
-                          ) : (
-                            <span className="text-[9px] font-bold text-slate-400 flex items-center gap-0.5 select-none" title="Dikunci oleh Admin">
-                              <Lock className="w-2 h-2" /> Dikunci
-                            </span>
-                          )}
+                          <div className="flex items-center justify-end gap-2 mt-0.5">
+                            {isAdminLoggedIn && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setPrintingVoucherRecord(rec);
+                                }}
+                                className="text-[9.5px] font-black text-blue-600 hover:text-blue-800 hover:underline transition-colors cursor-pointer"
+                                title="Lihat & Cetak Baucar Bayaran"
+                              >
+                                Baucar
+                              </button>
+                            )}
+                            {!rec.isLocked || isAdminLoggedIn ? (
+                              <button
+                                onClick={(e) => handleDeleteRecord(rec.id, e)}
+                                className="text-[9px] font-extrabold text-slate-400 hover:text-rose-600 transition-colors cursor-pointer"
+                                title="Padam rekod secara kekal"
+                              >
+                                Padam
+                              </button>
+                            ) : (
+                              <span className="text-[9px] font-bold text-slate-400 flex items-center gap-0.5 select-none" title="Dikunci oleh Admin">
+                                <Lock className="w-2 h-2" /> Dikunci
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
                     ))
@@ -1540,6 +1751,360 @@ export default function App() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* --- PAYMENT VOUCHER MODAL (ADMIN ONLY) --- */}
+      {printingVoucherRecord && !isPrintActive && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 overflow-y-auto no-print">
+          <div className="bg-white rounded-md shadow-xl border border-slate-300 w-full max-w-3xl flex flex-col max-h-[90vh]">
+            
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-5 py-3 border-b border-slate-200 bg-slate-50 shrink-0">
+              <div className="flex items-center gap-2 text-slate-800">
+                <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                <h3 className="text-xs font-black uppercase tracking-wider">Pratinjau Baucar Bayaran (Mod Admin)</h3>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setIsPrintActive(true)}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 cursor-pointer transition-colors"
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                  Cetak & Simpan PDF
+                </button>
+                <button
+                  onClick={() => setPrintingVoucherRecord(null)}
+                  className="p-1.5 hover:bg-slate-200 text-slate-400 hover:text-slate-700 rounded transition-colors cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Body: The scrollable formal voucher layout */}
+            <div className="flex-1 overflow-y-auto p-8 bg-slate-100 flex justify-center">
+              {/* Paper sheet */}
+              <div className="bg-white p-8 w-full max-w-2xl border border-slate-200 shadow-sm rounded-sm font-sans text-xs text-slate-800 leading-relaxed relative text-left">
+                
+                {/* Stamp watermark for visual flair */}
+                <div className="absolute right-8 top-28 border-4 border-emerald-600/30 text-emerald-600/30 uppercase text-[10px] font-black px-3 py-1 rounded-sm rotate-12 select-none pointer-events-none">
+                  DILULUSKAN / APPROVED
+                </div>
+
+                {/* Voucher Header */}
+                <div className="text-center pb-4 border-b-2 border-slate-950">
+                  <h4 className="text-sm font-black uppercase tracking-wide text-slate-900">{printingVoucherRecord.organizationName || "Pertubuhan IKRAM Malaysia"}</h4>
+                  <p className="text-[10px] text-slate-500 font-medium">{printingVoucherRecord.organizationSub || "IKRAM Perak Tengah"}</p>
+                  <h2 className="text-base font-black uppercase tracking-widest text-slate-900 mt-3 border-y border-slate-300 py-1 bg-slate-50">
+                    BAUCAR BAYARAN / PAYMENT VOUCHER
+                  </h2>
+                </div>
+
+                {/* Voucher Meta details */}
+                <div className="grid grid-cols-2 gap-4 py-4 border-b border-slate-200">
+                  <div className="space-y-1">
+                    <div className="flex">
+                      <span className="w-24 font-bold text-slate-500 uppercase text-[9px]">Dibayar Kepada:</span>
+                      <span className="font-extrabold text-slate-900">{printingVoucherRecord.claimantName}</span>
+                    </div>
+                    <div className="flex">
+                      <span className="w-24 font-bold text-slate-500 uppercase text-[9px]">Jawatan:</span>
+                      <span className="font-semibold text-slate-700">{printingVoucherRecord.claimantPosition}</span>
+                    </div>
+                    <div className="flex">
+                      <span className="w-24 font-bold text-slate-500 uppercase text-[9px]">Bank / No. Akaun:</span>
+                      <span className="font-mono text-slate-800 font-semibold">{printingVoucherRecord.bankName} — {printingVoucherRecord.bankAccount}</span>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-1 pl-4 border-l border-slate-200">
+                    <div className="flex">
+                      <span className="w-24 font-bold text-slate-500 uppercase text-[9px]">No. Baucar / PV:</span>
+                      <span className="font-mono font-black text-slate-900">{printingVoucherRecord.pvNumber}</span>
+                    </div>
+                    <div className="flex">
+                      <span className="w-24 font-bold text-slate-500 uppercase text-[9px]">Tarikh:</span>
+                      <span className="font-mono font-semibold text-slate-700">{printingVoucherRecord.date}</span>
+                    </div>
+                    <div className="flex">
+                      <span className="w-24 font-bold text-slate-500 uppercase text-[9px]">Cara Bayaran:</span>
+                      <span className="font-semibold text-slate-800">Pemindahan Bank (EFT)</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Purpose */}
+                <div className="py-3 border-b border-slate-200">
+                  <span className="font-bold text-slate-500 uppercase text-[9px] block mb-1">Tujuan / Perkara:</span>
+                  <p className="font-semibold text-slate-900 text-xs italic">{printingVoucherRecord.purpose}</p>
+                </div>
+
+                {/* Ledger Items Table */}
+                <div className="mt-4">
+                  <table className="w-full border-collapse border border-slate-300 text-left">
+                    <thead>
+                      <tr className="bg-slate-100 text-[9px] font-black uppercase tracking-wider border-b border-slate-300">
+                        <th className="p-2 border-r border-slate-300 w-8 text-center">Bil</th>
+                        <th className="p-2 border-r border-slate-300">Perihal Tuntutan / Particulars</th>
+                        <th className="p-2 w-28 text-right">Amaun / Amount (RM)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {printingVoucherRecord.items.filter(item => item.description.trim() !== "" || item.amount.trim() !== "").map((item, idx) => (
+                        <tr key={item.id} className="border-b border-slate-200 last:border-b-0">
+                          <td className="p-2 border-r border-slate-300 text-center font-mono">{idx + 1}</td>
+                          <td className="p-2 border-r border-slate-300 font-medium">{item.description}</td>
+                          <td className="p-2 text-right font-mono font-semibold">
+                            {parseFloat(item.amount) ? parseFloat(item.amount).toFixed(2) : "0.00"}
+                          </td>
+                        </tr>
+                      ))}
+                      {/* Totals row */}
+                      <tr className="bg-slate-50 font-extrabold border-t-2 border-slate-950">
+                        <td colSpan={2} className="p-2 border-r border-slate-300 text-right uppercase text-[9px] tracking-wide">Jumlah Keseluruhan (Total)</td>
+                        <td className="p-2 text-right font-mono text-xs text-slate-950">
+                          RM {printingVoucherRecord.totalAmount.toFixed(2)}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Amount in words */}
+                <div className="mt-4 p-2 bg-slate-50 border border-slate-200 rounded-sm italic">
+                  <span className="font-bold text-slate-500 uppercase text-[8px] block not-italic">Ringgit Malaysia Dalam Perkataan / Amount in Words:</span>
+                  <span className="text-slate-900 font-extrabold text-[11px] block mt-0.5">
+                    {numberToMalayWords(printingVoucherRecord.totalAmount)}
+                  </span>
+                </div>
+
+                {/* Ledger Accounts (Office Use) */}
+                <div className="mt-6 border border-slate-300">
+                  <div className="bg-slate-100 p-1.5 text-center font-black uppercase text-[8px] tracking-widest border-b border-slate-300 text-slate-600">
+                    Kegunaan Pejabat Sahaja (For Office Use Only)
+                  </div>
+                  <table className="w-full text-center border-collapse text-[10px]">
+                    <thead>
+                      <tr className="bg-slate-50 text-[8px] font-bold uppercase tracking-wider border-b border-slate-300">
+                        <th className="p-1 border-r border-slate-300">Akaun Ledger / Ledger Account</th>
+                        <th className="p-1 border-r border-slate-300">Kod / Code</th>
+                        <th className="p-1 border-r border-slate-300 w-24 text-right pr-2">Debit (RM)</th>
+                        <th className="p-1 w-24 text-right pr-2">Kredit (RM)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr className="border-b border-slate-200">
+                        <td className="p-1.5 border-r border-slate-200 text-left pl-2 text-slate-600">Tuntutan Kakitangan / Sukarelawan</td>
+                        <td className="p-1.5 border-r border-slate-200 font-mono text-slate-500">61000-TUNTUTAN</td>
+                        <td className="p-1.5 border-r border-slate-200 text-right font-mono font-medium pr-2">{printingVoucherRecord.totalAmount.toFixed(2)}</td>
+                        <td className="p-1.5 text-right font-mono font-medium pr-2 text-slate-300">—</td>
+                      </tr>
+                      <tr className="bg-slate-50/50">
+                        <td className="p-1.5 border-r border-slate-200 text-left pl-2 text-slate-600">Kredit Bank / Tunai</td>
+                        <td className="p-1.5 border-r border-slate-200 font-mono text-slate-500">11000-CASH/BANK</td>
+                        <td className="p-1.5 border-r border-slate-200 text-right font-mono font-medium pr-2 text-slate-300">—</td>
+                        <td className="p-1.5 text-right font-mono font-medium pr-2">{printingVoucherRecord.totalAmount.toFixed(2)}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Authorizations / Signatures Section */}
+                <div className="grid grid-cols-4 gap-2 mt-8 text-center text-[9px] font-medium leading-normal">
+                  <div className="border border-slate-200 p-2 rounded flex flex-col justify-between h-24">
+                    <span className="font-bold text-slate-400 uppercase tracking-wider text-[8px]">Disediakan Oleh</span>
+                    <span className="font-bold text-slate-800 underline truncate italic">{printingVoucherRecord.preparedBy || "—"}</span>
+                    <span className="text-[7px] text-slate-400 font-mono">Tarikh: {printingVoucherRecord.date}</span>
+                  </div>
+                  <div className="border border-slate-200 p-2 rounded flex flex-col justify-between h-24">
+                    <span className="font-bold text-slate-400 uppercase tracking-wider text-[8px]">Disemak Oleh</span>
+                    <span className="font-bold text-slate-800 underline truncate italic">{printingVoucherRecord.reviewedBy || "—"}</span>
+                    <span className="text-[7px] text-slate-400 font-mono">Tarikh: _________</span>
+                  </div>
+                  <div className="border border-slate-200 p-2 rounded flex flex-col justify-between h-24">
+                    <span className="font-bold text-slate-400 uppercase tracking-wider text-[8px]">Diluluskan Oleh</span>
+                    <span className="font-bold text-slate-800 underline truncate italic">{printingVoucherRecord.approvedBy || "—"}</span>
+                    <span className="text-[7px] text-slate-400 font-mono">Tarikh: _________</span>
+                  </div>
+                  <div className="border border-slate-200 p-2 rounded flex flex-col justify-between h-24 bg-slate-50">
+                    <span className="font-bold text-slate-400 uppercase tracking-wider text-[8px]">Penerima (EFT)</span>
+                    <div className="text-[8px] text-slate-400 leading-tight">
+                      Sila kepilkan slip EFT/Bank apabila selesai transaksi
+                    </div>
+                    <span className="font-bold text-slate-800 truncate text-[8px]">{printingVoucherRecord.claimantName}</span>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex justify-end gap-2 px-5 py-3 border-t border-slate-200 bg-slate-50 shrink-0">
+              <button
+                onClick={() => setPrintingVoucherRecord(null)}
+                className="px-4 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded text-[10px] font-bold uppercase tracking-wider transition-colors cursor-pointer"
+              >
+                Tutup
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* --- PURE PRINT VIEW FOR PAYMENT VOUCHER (FOR HIGH-FIDELITY PDF SAVE/PRINT) --- */}
+      {isPrintActive && printingVoucherRecord && (
+        <div className="fixed inset-0 bg-white z-[9999] overflow-auto flex justify-center p-0 m-0">
+          <div className="w-full max-w-2xl bg-white p-8 text-xs text-slate-800 leading-relaxed font-sans relative">
+            <div className="absolute right-8 top-28 border-4 border-emerald-600/30 text-emerald-600/30 uppercase text-[10px] font-black px-3 py-1 rounded-sm rotate-12">
+              DILULUSKAN / APPROVED
+            </div>
+
+            {/* Voucher Header */}
+            <div className="text-center pb-4 border-b-2 border-slate-950">
+              <h4 className="text-sm font-black uppercase tracking-wide text-slate-900">{printingVoucherRecord.organizationName || "Pertubuhan IKRAM Malaysia"}</h4>
+              <p className="text-[10px] text-slate-500 font-medium">{printingVoucherRecord.organizationSub || "IKRAM Perak Tengah"}</p>
+              <h2 className="text-base font-black uppercase tracking-widest text-slate-900 mt-3 border-y border-slate-300 py-1 bg-slate-50">
+                BAUCAR BAYARAN / PAYMENT VOUCHER
+              </h2>
+            </div>
+
+            {/* Voucher Meta details */}
+            <div className="grid grid-cols-2 gap-4 py-4 border-b border-slate-200">
+              <div className="space-y-1 text-left">
+                <div className="flex">
+                  <span className="w-24 font-bold text-slate-500 uppercase text-[9px]">Dibayar Kepada:</span>
+                  <span className="font-extrabold text-slate-900">{printingVoucherRecord.claimantName}</span>
+                </div>
+                <div className="flex">
+                  <span className="w-24 font-bold text-slate-500 uppercase text-[9px]">Jawatan:</span>
+                  <span className="font-semibold text-slate-700">{printingVoucherRecord.claimantPosition}</span>
+                </div>
+                <div className="flex">
+                  <span className="w-24 font-bold text-slate-500 uppercase text-[9px]">Bank / No. Akaun:</span>
+                  <span className="font-mono text-slate-800 font-semibold">{printingVoucherRecord.bankName} — {printingVoucherRecord.bankAccount}</span>
+                </div>
+              </div>
+              
+              <div className="space-y-1 pl-4 border-l border-slate-200 text-left">
+                <div className="flex">
+                  <span className="w-24 font-bold text-slate-500 uppercase text-[9px]">No. Baucar / PV:</span>
+                  <span className="font-mono font-black text-slate-900">{printingVoucherRecord.pvNumber}</span>
+                </div>
+                <div className="flex">
+                  <span className="w-24 font-bold text-slate-500 uppercase text-[9px]">Tarikh:</span>
+                  <span className="font-mono font-semibold text-slate-700">{printingVoucherRecord.date}</span>
+                </div>
+                <div className="flex">
+                  <span className="w-24 font-bold text-slate-500 uppercase text-[9px]">Cara Bayaran:</span>
+                  <span className="font-semibold text-slate-800">Pemindahan Bank (EFT)</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Purpose */}
+            <div className="py-3 border-b border-slate-200 text-left">
+              <span className="font-bold text-slate-500 uppercase text-[9px] block mb-1">Tujuan / Perkara:</span>
+              <p className="font-semibold text-slate-900 text-xs italic">{printingVoucherRecord.purpose}</p>
+            </div>
+
+            {/* Ledger Items Table */}
+            <div className="mt-4">
+              <table className="w-full border-collapse border border-slate-300 text-left">
+                <thead>
+                  <tr className="bg-slate-100 text-[9px] font-black uppercase tracking-wider border-b border-slate-300">
+                    <th className="p-2 border-r border-slate-300 w-8 text-center">Bil</th>
+                    <th className="p-2 border-r border-slate-300">Perihal Tuntutan / Particulars</th>
+                    <th className="p-2 w-28 text-right">Amaun / Amount (RM)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {printingVoucherRecord.items.filter(item => item.description.trim() !== "" || item.amount.trim() !== "").map((item, idx) => (
+                    <tr key={item.id} className="border-b border-slate-200 last:border-b-0">
+                      <td className="p-2 border-r border-slate-300 text-center font-mono">{idx + 1}</td>
+                      <td className="p-2 border-r border-slate-300 font-medium">{item.description}</td>
+                      <td className="p-2 text-right font-mono font-semibold">
+                        {parseFloat(item.amount) ? parseFloat(item.amount).toFixed(2) : "0.00"}
+                      </td>
+                    </tr>
+                  ))}
+                  {/* Totals row */}
+                  <tr className="bg-slate-50 font-extrabold border-t-2 border-slate-950">
+                    <td colSpan={2} className="p-2 border-r border-slate-300 text-right uppercase text-[9px] tracking-wide">Jumlah Keseluruhan (Total)</td>
+                    <td className="p-2 text-right font-mono text-xs text-slate-950">
+                      RM {printingVoucherRecord.totalAmount.toFixed(2)}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            {/* Amount in words */}
+            <div className="mt-4 p-2 bg-slate-50 border border-slate-200 rounded-sm italic text-left">
+              <span className="font-bold text-slate-500 uppercase text-[8px] block not-italic">Ringgit Malaysia Dalam Perkataan / Amount in Words:</span>
+              <span className="text-slate-900 font-extrabold text-[11px] block mt-0.5">
+                {numberToMalayWords(printingVoucherRecord.totalAmount)}
+              </span>
+            </div>
+
+            {/* Ledger Accounts (Office Use) */}
+            <div className="mt-6 border border-slate-300">
+              <div className="bg-slate-100 p-1.5 text-center font-black uppercase text-[8px] tracking-widest border-b border-slate-300 text-slate-600">
+                Kegunaan Pejabat Sahaja (For Office Use Only)
+              </div>
+              <table className="w-full text-center border-collapse text-[10px]">
+                <thead>
+                  <tr className="bg-slate-50 text-[8px] font-bold uppercase tracking-wider border-b border-slate-300">
+                    <th className="p-1 border-r border-slate-300">Akaun Ledger / Ledger Account</th>
+                    <th className="p-1 border-r border-slate-300">Kod / Code</th>
+                    <th className="p-1 border-r border-slate-300 w-24 text-right pr-2">Debit (RM)</th>
+                    <th className="p-1 w-24 text-right pr-2">Kredit (RM)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="border-b border-slate-200">
+                    <td className="p-1.5 border-r border-slate-200 text-left pl-2 text-slate-600">Tuntutan Kakitangan / Sukarelawan</td>
+                    <td className="p-1.5 border-r border-slate-200 font-mono text-slate-500">61000-TUNTUTAN</td>
+                    <td className="p-1.5 border-r border-slate-200 text-right font-mono font-medium pr-2">{printingVoucherRecord.totalAmount.toFixed(2)}</td>
+                    <td className="p-1.5 text-right font-mono font-medium pr-2 text-slate-300">—</td>
+                  </tr>
+                  <tr className="bg-slate-50/50">
+                    <td className="p-1.5 border-r border-slate-200 text-left pl-2 text-slate-600">Kredit Bank / Tunai</td>
+                    <td className="p-1.5 border-r border-slate-200 font-mono text-slate-500">11000-CASH/BANK</td>
+                    <td className="p-1.5 border-r border-slate-200 text-right font-mono font-medium pr-2 text-slate-300">—</td>
+                    <td className="p-1.5 text-right font-mono font-medium pr-2">{printingVoucherRecord.totalAmount.toFixed(2)}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            {/* Authorizations / Signatures Section */}
+            <div className="grid grid-cols-4 gap-2 mt-8 text-center text-[9px] font-medium leading-normal">
+              <div className="border border-slate-200 p-2 rounded flex flex-col justify-between h-24">
+                <span className="font-bold text-slate-400 uppercase tracking-wider text-[8px]">Disediakan Oleh</span>
+                <span className="font-bold text-slate-800 underline truncate italic">{printingVoucherRecord.preparedBy || "—"}</span>
+                <span className="text-[7px] text-slate-400 font-mono">Tarikh: {printingVoucherRecord.date}</span>
+              </div>
+              <div className="border border-slate-200 p-2 rounded flex flex-col justify-between h-24">
+                <span className="font-bold text-slate-400 uppercase tracking-wider text-[8px]">Disemak Oleh</span>
+                <span className="font-bold text-slate-800 underline truncate italic">{printingVoucherRecord.reviewedBy || "—"}</span>
+                <span className="text-[7px] text-slate-400 font-mono">Tarikh: _________</span>
+              </div>
+              <div className="border border-slate-200 p-2 rounded flex flex-col justify-between h-24">
+                <span className="font-bold text-slate-400 uppercase tracking-wider text-[8px]">Diluluskan Oleh</span>
+                <span className="font-bold text-slate-800 underline truncate italic">{printingVoucherRecord.approvedBy || "—"}</span>
+                <span className="text-[7px] text-slate-400 font-mono">Tarikh: _________</span>
+              </div>
+              <div className="border border-slate-200 p-2 rounded flex flex-col justify-between h-24 bg-slate-50">
+                <span className="font-bold text-slate-400 uppercase tracking-wider text-[8px]">Penerima (EFT)</span>
+                <div className="text-[8px] text-slate-400 leading-tight">
+                  Sila kepilkan slip EFT/Bank apabila selesai transaksi
+                </div>
+                <span className="font-bold text-slate-800 truncate text-[8px]">{printingVoucherRecord.claimantName}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );
