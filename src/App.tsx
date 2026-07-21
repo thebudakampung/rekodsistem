@@ -423,7 +423,7 @@ export default function App() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // --- PROFILE REGISTRATION IN FIRESTORE ---
-  const registerUserInFirestore = async (user: FirebaseUser) => {
+  const registerUserInFirestore = async (user: any) => {
     try {
       const userRef = doc(db, "users", user.uid);
       const isEmailAdmin = verifyAdminEmail(user.email || "");
@@ -433,7 +433,7 @@ export default function App() {
         email: user.email || "",
         photoURL: user.photoURL || "",
         lastActive: new Date().toISOString(),
-        role: isEmailAdmin ? "admin" : "user"
+        role: isEmailAdmin ? "admin" : (user.isGuest ? "tetamu" : "user")
       }, { merge: true });
     } catch (err) {
       console.error("Gagal mendaftarkan profil pengguna di Firestore:", err);
@@ -467,7 +467,7 @@ export default function App() {
   }, [isAdminLoggedIn, selectedRecordTab]);
 
   // --- AUTH STATES & HANDLERS ---
-  const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
+  const [currentUser, setCurrentUser] = useState<any | null>(null);
   const [authLoading, setAuthLoading] = useState<boolean>(true);
   const [authModalMode, setAuthModalMode] = useState<"login" | "register">("login");
   const [authEmail, setAuthEmail] = useState<string>("");
@@ -477,9 +477,9 @@ export default function App() {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setCurrentUser(user);
-      setAuthLoading(false);
       if (user) {
+        setCurrentUser(user);
+        setAuthLoading(false);
         // Register or update user profile details in Firestore
         registerUserInFirestore(user);
 
@@ -502,11 +502,31 @@ export default function App() {
         setClaimantName(prev => prev || user.displayName || user.email?.split("@")[0] || "");
         setPreparedBy(prev => prev || user.displayName || user.email?.split("@")[0] || "Veddin");
       } else {
-        setIsAdminLoggedIn(false);
-        setAdminEmail("");
-        localStorage.removeItem("sistem_tuntutan_is_admin");
-        localStorage.removeItem("sistem_tuntutan_admin_email");
-        setSelectedRecordTab("personal");
+        // If no authenticated Firebase user, check if there is a guest session
+        const savedGuest = localStorage.getItem("sistem_tuntutan_guest_user");
+        if (savedGuest) {
+          try {
+            const guest = JSON.parse(savedGuest);
+            setCurrentUser(guest);
+            setClaimantName(prev => prev || guest.displayName || "");
+            setPreparedBy(prev => prev || guest.displayName || "Veddin");
+          } catch (e) {
+            console.error("Ralat parsing guest session:", e);
+            setCurrentUser(null);
+          }
+        } else {
+          setCurrentUser(null);
+        }
+        setAuthLoading(false);
+
+        const isLocalAdmin = localStorage.getItem("sistem_tuntutan_is_admin") === "true";
+        if (!isLocalAdmin) {
+          setIsAdminLoggedIn(false);
+          setAdminEmail("");
+          localStorage.removeItem("sistem_tuntutan_is_admin");
+          localStorage.removeItem("sistem_tuntutan_admin_email");
+          setSelectedRecordTab("personal");
+        }
       }
     });
     return () => unsubscribe();
@@ -525,9 +545,53 @@ export default function App() {
         errorMsg = "Popup disekat oleh pelayar anda. Sila benarkan popup untuk laman ini.";
       } else if (err.code === "auth/cancelled-popup-request") {
         errorMsg = "Log masuk Google dibatalkan.";
+      } else if (err.code === "auth/unauthorized-domain" || (err.message && err.message.includes("unauthorized-domain"))) {
+        errorMsg = `Ralat: Domain ini (${window.location.hostname}) tidak dibenarkan oleh Firebase. Sila tambah domain ini ke 'Authorized domains' di: Firebase Console > Authentication > Settings > Authorized domains.`;
+      } else if (err.code === "auth/operation-not-allowed" || (err.message && err.message.includes("operation-not-allowed"))) {
+        errorMsg = "Ralat: Kaedah Google Sign-In belum diaktifkan dalam Konsol Firebase anda. Sila aktifkan 'Google' di: Firebase Console > Authentication > Sign-in method.";
+      } else if (err.message) {
+        errorMsg = `Ralat Google: ${err.message}`;
       }
       setAuthError(errorMsg);
       triggerNotification(errorMsg, "error");
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleGuestSignIn = async () => {
+    setAuthError("");
+    setAuthLoading(true);
+    try {
+      const guestName = authName.trim() || "Pengguna Tetamu";
+      
+      // Get or generate client id
+      let localClientId = localStorage.getItem("sistem_tuntutan_client_id");
+      if (!localClientId) {
+        localClientId = `client-${Math.random().toString(36).substring(2, 11)}`;
+        localStorage.setItem("sistem_tuntutan_client_id", localClientId);
+      }
+      
+      const guestUser = {
+        uid: localClientId,
+        displayName: guestName,
+        email: `${guestName.toLowerCase().replace(/\s+/g, "") || "tetamu"}@tetamu.local`,
+        photoURL: "",
+        isGuest: true
+      };
+      
+      localStorage.setItem("sistem_tuntutan_guest_user", JSON.stringify(guestUser));
+      setCurrentUser(guestUser);
+      setClaimantName(guestName);
+      setPreparedBy(guestName);
+      
+      // Register guest profile in Firestore so administrators can keep track of active sessions
+      await registerUserInFirestore(guestUser);
+      
+      triggerNotification(`Berjaya masuk sebagai Tetamu: ${guestName}!`, "success");
+    } catch (err: any) {
+      console.error("Ralat log masuk Tetamu:", err);
+      triggerNotification("Gagal memulakan Mod Tetamu.", "error");
     } finally {
       setAuthLoading(false);
     }
@@ -616,6 +680,8 @@ export default function App() {
 
   const handleLogOut = async () => {
     try {
+      localStorage.removeItem("sistem_tuntutan_guest_user");
+      setCurrentUser(null);
       await signOut(auth);
       triggerNotification("Anda telah log keluar dengan selamat.", "info");
       handleResetForm(false);
@@ -1365,6 +1431,11 @@ export default function App() {
 
   // --- EXPORT APPROVED VOUCHERS (FOR TREASURER / BENDAHARI) ---
   const handleExportApprovedCSV = () => {
+    if (!isAdminLoggedIn) {
+      triggerNotification("Ralat: Hanya Admin yang dibenarkan mengeksport data ke CSV.", "error");
+      return;
+    }
+
     // Only export records where isApproved is true
     const approvedRecords = records.filter(r => r.isApproved);
 
@@ -1471,24 +1542,35 @@ export default function App() {
             </div>
           )}
 
-          {/* Primary Action: Google Sign In */}
+          {/* Primary Action: Google & Guest Sign In */}
           <div className="space-y-4">
             <div>
-              <button
-                onClick={handleGoogleSignIn}
-                className="w-full bg-white hover:bg-slate-50 text-slate-900 font-extrabold text-xs uppercase tracking-wider py-3 px-4 rounded-lg transition-all cursor-pointer flex items-center justify-center gap-3 shadow-md hover:shadow-lg active:scale-98"
-              >
-                {/* Custom Google Icon */}
-                <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none">
-                  <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
-                  <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
-                  <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l3.66-2.85z" fill="#FBBC05" />
-                  <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.85c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
-                </svg>
-                <span>Log Masuk dengan Google</span>
-              </button>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={handleGoogleSignIn}
+                  className="bg-white hover:bg-slate-50 text-slate-900 font-extrabold text-[10px] sm:text-xs uppercase tracking-wider py-2.5 px-3 rounded-lg transition-all cursor-pointer flex items-center justify-center gap-2 shadow-md hover:shadow-lg active:scale-98"
+                >
+                  {/* Custom Google Icon */}
+                  <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none">
+                    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
+                    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+                    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l3.66-2.85z" fill="#FBBC05" />
+                    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.85c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
+                  </svg>
+                  <span>Google</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleGuestSignIn}
+                  className="bg-slate-800 hover:bg-slate-750 text-slate-200 font-extrabold text-[10px] sm:text-xs uppercase tracking-wider py-2.5 px-3 rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-md active:scale-98 border border-slate-700"
+                >
+                  <User className="w-3.5 h-3.5 text-slate-400" />
+                  <span>Mod Tetamu</span>
+                </button>
+              </div>
               <p className="text-[10px] text-center text-slate-500 mt-2">
-                Pilihan terpantas & selamat untuk pemohon yang memiliki e-mel Gmail peribadi (95% pengguna).
+                Gunakan <strong className="text-slate-400">Google</strong> untuk simpanan awan automatik, atau <strong className="text-slate-400">Mod Tetamu</strong> untuk log masuk segera tanpa akaun.
               </p>
             </div>
 
@@ -1578,11 +1660,22 @@ export default function App() {
                   : "Sudah mendaftar? Log Masuk ke akaun anda"}
               </button>
 
-              <div className="p-3 bg-slate-950/50 border border-slate-850 rounded-lg text-left">
-                <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider mb-1">💡 Tips Pendaftaran & Log Masuk:</p>
-                <ul className="text-[9px] text-slate-400 space-y-1 list-disc list-inside">
-                  <li>Sangat disyorkan menggunakan <strong className="text-slate-200">Log Masuk dengan Google</strong> kerana ia aktif secara automatik tanpa memerlukan sebarang tetapan tambahan.</li>
-                  <li>Jika pendaftaran e-mel gagal dengan ralat <code className="text-rose-400">auth/operation-not-allowed</code>, pastikan kaedah <strong className="text-slate-300">Email/Password</strong> telah diaktifkan di dalam Konsol Firebase anda (Authentication &gt; Sign-in method).</li>
+              <div className="p-3 bg-slate-950/50 border border-slate-850 rounded-lg text-left space-y-2">
+                <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider mb-0.5">💡 Tips Pendaftaran & Log Masuk:</p>
+                <ul className="text-[9px] text-slate-400 space-y-1.5 list-disc list-inside">
+                  <li>
+                    <strong className="text-slate-200">Log Masuk Google gagal?</strong> Anda perlu membenarkan domain aplikasi ini di Firebase anda:
+                    <ol className="list-decimal pl-4 mt-1 text-[8px] text-slate-400 space-y-0.5 font-medium">
+                      <li>Pastikan penyedia <strong className="text-slate-300">Google</strong> diaktifkan di <em className="text-emerald-500 font-mono">Authentication &gt; Sign-in method</em>.</li>
+                      <li>Di tab <strong className="text-slate-300">Settings &gt; Authorized domains</strong> (Domain kawalan), tambah domain berikut:<br />
+                        <code className="text-amber-400 font-mono font-bold bg-slate-900 px-1 py-0.5 rounded select-all break-all">{window.location.hostname}</code>
+                      </li>
+                    </ol>
+                  </li>
+                  <li>Jika pendaftaran e-mel gagal dengan ralat <code className="text-rose-400">auth/operation-not-allowed</code>, pastikan kaedah <strong className="text-slate-300">Email/Password</strong> diaktifkan di dalam Konsol Firebase anda.</li>
+                  <li>
+                    <strong className="text-emerald-400">Gunakan Mod Tetamu:</strong> Pilihan paling pantas untuk menguji sistem serta-merta tanpa perlu melakukan sebarang konfigurasi Firebase Auth!
+                  </li>
                 </ul>
               </div>
             </div>
@@ -2455,44 +2548,46 @@ export default function App() {
           </div>
 
           {/* Panel 3: Panel Rujukan Bendahari */}
-          <div className="bg-gradient-to-br from-emerald-50/50 to-teal-50/20 border border-emerald-300 shadow-xs p-4 rounded-sm flex flex-col shrink-0 gap-2.5">
-            <div className="flex items-center justify-between pb-1.5 border-b border-emerald-100/70">
-              <h3 className="text-xs font-black text-emerald-800 uppercase tracking-wider flex items-center gap-1.5">
-                <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                <span>Rujukan Bendahari</span>
-              </h3>
-              <span className="text-[8px] font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-200/50 px-1.5 py-0.5 rounded uppercase tracking-widest">
-                Kewangan
-              </span>
-            </div>
-
-            <p className="text-[10px] text-slate-600 leading-relaxed">
-              Memudahkan bendahari memantau dan memuat turun senarai semua baucar bayaran yang telah diperaku dan disahkan kelulusannya.
-            </p>
-
-            <div className="bg-white/80 border border-emerald-100 rounded-lg p-2.5 flex items-center justify-between shadow-3xs">
-              <div>
-                <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider block leading-none mb-1">
-                  Jumlah Baucar Sah
-                </span>
-                <span className="text-lg font-black text-slate-800 font-mono leading-none">
-                  {records.filter(r => r.isApproved).length} <span className="text-xs font-medium text-slate-500">rekod</span>
+          {isAdminLoggedIn && (
+            <div className="bg-gradient-to-br from-emerald-50/50 to-teal-50/20 border border-emerald-300 shadow-xs p-4 rounded-sm flex flex-col shrink-0 gap-2.5">
+              <div className="flex items-center justify-between pb-1.5 border-b border-emerald-100/70">
+                <h3 className="text-xs font-black text-emerald-800 uppercase tracking-wider flex items-center gap-1.5">
+                  <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                  <span>Rujukan Bendahari</span>
+                </h3>
+                <span className="text-[8px] font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-200/50 px-1.5 py-0.5 rounded uppercase tracking-widest">
+                  Kewangan
                 </span>
               </div>
-              <div className="bg-emerald-50 text-emerald-700 p-2 rounded-full border border-emerald-100 shadow-3xs">
-                <FileSpreadsheet className="w-4 h-4" />
-              </div>
-            </div>
 
-            <button
-              onClick={handleExportApprovedCSV}
-              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-[10px] uppercase tracking-wider py-2.5 rounded transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-2xs hover:shadow-xs active:scale-98"
-              title="Eksport senarai baucar diluluskan ke format fail Excel (.CSV)"
-            >
-              <Download className="w-3.5 h-3.5" />
-              Eksport Baucar Sah (CSV)
-            </button>
-          </div>
+              <p className="text-[10px] text-slate-600 leading-relaxed">
+                Memudahkan bendahari memantau dan memuat turun senarai semua baucar bayaran yang telah diperaku dan disahkan kelulusannya.
+              </p>
+
+              <div className="bg-white/80 border border-emerald-100 rounded-lg p-2.5 flex items-center justify-between shadow-3xs">
+                <div>
+                  <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider block leading-none mb-1">
+                    Jumlah Baucar Sah
+                  </span>
+                  <span className="text-lg font-black text-slate-800 font-mono leading-none">
+                    {records.filter(r => r.isApproved).length} <span className="text-xs font-medium text-slate-500">rekod</span>
+                  </span>
+                </div>
+                <div className="bg-emerald-50 text-emerald-700 p-2 rounded-full border border-emerald-100 shadow-3xs">
+                  <FileSpreadsheet className="w-4 h-4" />
+                </div>
+              </div>
+
+              <button
+                onClick={handleExportApprovedCSV}
+                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-[10px] uppercase tracking-wider py-2.5 rounded transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-2xs hover:shadow-xs active:scale-98"
+                title="Eksport senarai baucar diluluskan ke format fail Excel (.CSV)"
+              >
+                <Download className="w-3.5 h-3.5" />
+                Eksport Baucar Sah (CSV)
+              </button>
+            </div>
+          )}
         </aside>
       </main>
 
