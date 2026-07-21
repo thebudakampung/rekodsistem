@@ -564,6 +564,8 @@ export default function App() {
         await updateProfile(result.user, {
           displayName: authName.trim()
         });
+        // Explicitly register in Firestore now that we have the proper display name
+        await registerUserInFirestore(result.user);
         triggerNotification("Akaun berjaya didaftarkan! Selamat datang.", "success");
       }
       
@@ -582,6 +584,10 @@ export default function App() {
         errorMsg = "Kata laluan mestilah sekurang-kurangnya 6 aksara.";
       } else if (err.code === "auth/invalid-email") {
         errorMsg = "Format e-mel tidak sah.";
+      } else if (err.code === "auth/operation-not-allowed") {
+        errorMsg = "Ralat: Kaedah Daftar E-mel/Kata Laluan belum diaktifkan dalam Konsol Firebase Auth anda. Sila aktifkan 'Email/Password' di: Firebase Console > Authentication > Sign-in method.";
+      } else {
+        errorMsg = `Gagal melakukan pengesahan: ${err.message || err.code || err}`;
       }
       setAuthError(errorMsg);
       triggerNotification(errorMsg, "error");
