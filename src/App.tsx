@@ -560,12 +560,30 @@ export default function App() {
           return;
         }
         const result = await createUserWithEmailAndPassword(auth, email, password);
+        
         // Update display name
         await updateProfile(result.user, {
           displayName: authName.trim()
         });
+
+        // Force a reload of the current user profile from the server to guarantee display name is populated
+        try {
+          await result.user.reload();
+        } catch (reloadErr) {
+          console.warn("Gagal reload profil user, meneruskan proses:", reloadErr);
+        }
+
+        // Get the fresh user reference
+        const freshUser = auth.currentUser || result.user;
+        setCurrentUser(freshUser);
+
         // Explicitly register in Firestore now that we have the proper display name
-        await registerUserInFirestore(result.user);
+        await registerUserInFirestore(freshUser);
+        
+        // Update claimant names states
+        setClaimantName(authName.trim());
+        setPreparedBy(authName.trim());
+
         triggerNotification("Akaun berjaya didaftarkan! Selamat datang.", "success");
       }
       
@@ -1546,7 +1564,7 @@ export default function App() {
             </form>
 
             {/* Toggle Mode */}
-            <div className="text-center pt-2">
+            <div className="text-center pt-2 space-y-3">
               <button
                 type="button"
                 onClick={() => {
@@ -1559,6 +1577,14 @@ export default function App() {
                   ? "Tiada akaun? Daftar Akaun Baru di sini"
                   : "Sudah mendaftar? Log Masuk ke akaun anda"}
               </button>
+
+              <div className="p-3 bg-slate-950/50 border border-slate-850 rounded-lg text-left">
+                <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider mb-1">💡 Tips Pendaftaran & Log Masuk:</p>
+                <ul className="text-[9px] text-slate-400 space-y-1 list-disc list-inside">
+                  <li>Sangat disyorkan menggunakan <strong className="text-slate-200">Log Masuk dengan Google</strong> kerana ia aktif secara automatik tanpa memerlukan sebarang tetapan tambahan.</li>
+                  <li>Jika pendaftaran e-mel gagal dengan ralat <code className="text-rose-400">auth/operation-not-allowed</code>, pastikan kaedah <strong className="text-slate-300">Email/Password</strong> telah diaktifkan di dalam Konsol Firebase anda (Authentication &gt; Sign-in method).</li>
+                </ul>
+              </div>
             </div>
           </div>
         </div>
