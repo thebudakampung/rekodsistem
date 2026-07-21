@@ -27,7 +27,7 @@ import {
   Download
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { ExpenseItem, ReceiptAttachment, ClaimRecord } from "./types";
+import { ExpenseItem, ReceiptAttachment, ClaimRecord, ReceiptRecord } from "./types";
 import { db, auth, googleProvider } from "./firebase";
 import { collection, doc, setDoc, getDocs, deleteDoc, query, orderBy, updateDoc } from "firebase/firestore";
 import { 
@@ -369,6 +369,128 @@ export function VoucherPrintSheet({ record }: VoucherPrintSheetProps) {
   );
 }
 
+interface ReceiptPrintSheetProps {
+  receipt: ReceiptRecord;
+}
+
+export function ReceiptPrintSheet({ receipt }: ReceiptPrintSheetProps) {
+  return (
+    <div className="w-full bg-[#f2f5f2] p-6 text-slate-800 leading-normal font-sans border-2 border-emerald-600 relative rounded-xs text-xs text-left">
+      {/* Decorative Stamp Watermark */}
+      <div className="absolute left-1/2 -translate-x-1/2 top-[90px] border-4 border-emerald-600/85 text-emerald-600/85 bg-white/40 uppercase text-[10px] font-black px-4 py-1.5 rounded-md rotate-12 select-none pointer-events-none z-10 tracking-widest shadow-xs">
+        DITERIMA / RECEIVED
+      </div>
+
+      {/* Header Container */}
+      <div className="flex justify-between items-start pb-4 border-b-2 border-emerald-600 gap-4">
+        {/* Company Info */}
+        <div className="space-y-1 max-w-[65%]">
+          <h1 className="text-sm md:text-base font-black tracking-wide text-slate-900 uppercase leading-snug">
+            Pertubuhan IKRAM Malaysia (IKRAM)
+          </h1>
+          <p className="text-xs font-black text-emerald-800 uppercase">
+            Kawasan Perak Tengah
+          </p>
+        </div>
+
+        {/* Receipt Title Badge on Right */}
+        <div className="flex flex-col items-end shrink-0 gap-2">
+          <div className="bg-emerald-100 border border-emerald-600 px-4 py-2 text-center rounded-sm">
+            <h2 className="text-xs md:text-sm font-black tracking-widest text-emerald-900 leading-tight">
+              RESIT RASMI<br />OFFICIAL RECEIPT
+            </h2>
+          </div>
+          
+          {/* Meta Info */}
+          <div className="border border-emerald-300 bg-white p-2 rounded-xs min-w-[150px] space-y-1 text-[9px] font-semibold text-slate-700">
+            <div className="flex justify-between">
+              <span className="text-slate-400">Resit #:</span>
+              <span className="font-mono text-slate-900 font-extrabold">{receipt.receiptNumber || "—"}</span>
+            </div>
+            <div className="flex justify-between border-t border-slate-100 pt-1">
+              <span className="text-slate-400">Tarikh / Date:</span>
+              <span className="font-mono text-slate-900">{receipt.date || "—"}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content Fields */}
+      <div className="mt-6 space-y-4">
+        <div className="grid grid-cols-12 gap-2 items-center">
+          <div className="col-span-3 text-[#2d472d] font-black uppercase tracking-wider text-[9px]">
+            Diterima Daripada<br />
+            <span className="text-[7px] text-slate-400 normal-case font-bold">Received From</span>
+          </div>
+          <div className="col-span-9 border-b border-slate-400 pb-1 font-extrabold text-slate-900 uppercase">
+            {receipt.payerName || "—"}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-12 gap-2 items-center">
+          <div className="col-span-3 text-[#2d472d] font-black uppercase tracking-wider text-[9px]">
+            Jumlah (RM)<br />
+            <span className="text-[7px] text-slate-400 normal-case font-bold">Amount</span>
+          </div>
+          <div className="col-span-9 border-b border-slate-400 pb-1 font-mono font-extrabold text-emerald-800 text-sm">
+            RM {Number(receipt.amount || 0).toFixed(2)}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-12 gap-2 items-center">
+          <div className="col-span-3 text-[#2d472d] font-black uppercase tracking-wider text-[9px]">
+            Dalam Perkataan<br />
+            <span className="text-[7px] text-slate-400 normal-case font-bold">Amount in Words</span>
+          </div>
+          <div className="col-span-9 border-b border-slate-400 pb-1 italic font-semibold text-slate-800 uppercase text-[10px]">
+            {receipt.amountInWords || "—"}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-12 gap-2 items-center">
+          <div className="col-span-3 text-[#2d472d] font-black uppercase tracking-wider text-[9px]">
+            Bayaran Untuk<br />
+            <span className="text-[7px] text-slate-400 normal-case font-bold">Payment For</span>
+          </div>
+          <div className="col-span-9 border-b border-slate-400 pb-1 font-medium text-slate-800">
+            {receipt.paymentFor || "—"}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-12 gap-2 items-center">
+          <div className="col-span-3 text-[#2d472d] font-black uppercase tracking-wider text-[9px]">
+            Kaedah Bayaran<br />
+            <span className="text-[7px] text-slate-400 normal-case font-bold">Payment Method</span>
+          </div>
+          <div className="col-span-9 border-b border-slate-400 pb-1 font-bold text-slate-800 uppercase">
+            {receipt.paymentMethod || "—"}
+          </div>
+        </div>
+      </div>
+
+      {/* Signature Section */}
+      <div className="mt-10 flex justify-between items-end">
+        <div>
+          <span className="text-[8px] text-slate-400 font-semibold block uppercase">Dicetak Secara Sistem</span>
+          <span className="text-[8px] text-slate-400 font-semibold block uppercase">Sistem Pengurusan Bendahari Pro</span>
+        </div>
+        <div className="text-center w-[180px] space-y-1">
+          <div className="border-b-2 border-slate-400 h-10 flex items-end justify-center">
+            {/* Simple digital signature look */}
+            <span className="font-serif italic text-[10px] text-slate-500">{receipt.receivedBy}</span>
+          </div>
+          <span className="text-[9px] font-bold text-slate-700 uppercase tracking-wider block">
+            Diterima Oleh
+          </span>
+          <span className="text-[7px] text-slate-400 block -mt-1 normal-case">
+            Authorized Signature
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   // --- STATE ---
   const [orgName, setOrgName] = useState("IKRAM Perak Tengah");
@@ -406,10 +528,25 @@ export default function App() {
   
   // --- CLOUD DB & ADMIN STATES ---
   const [currentClientId, setCurrentClientId] = useState<string>("");
-  const [selectedRecordTab, setSelectedRecordTab] = useState<"personal" | "all" | "users">("personal");
+  const [selectedRecordTab, setSelectedRecordTab] = useState<"personal" | "all" | "users" | "receipts">("personal");
   const [isDbLoading, setIsDbLoading] = useState<boolean>(false);
   const [usersList, setUsersList] = useState<any[]>([]);
   const [isUsersLoading, setIsUsersLoading] = useState<boolean>(false);
+  
+  // --- RECEIPTS STATES ---
+  const [receiptsList, setReceiptsList] = useState<ReceiptRecord[]>([]);
+  const [isReceiptsLoading, setIsReceiptsLoading] = useState<boolean>(false);
+  const [printingReceiptRecord, setPrintingReceiptRecord] = useState<ReceiptRecord | null>(null);
+  const [isReceiptPrintActive, setIsReceiptPrintActive] = useState<boolean>(false);
+  
+  // Receipts Form State (for adding standalone receipts)
+  const [showAddReceiptModal, setShowAddReceiptModal] = useState<boolean>(false);
+  const [receiptPayerName, setReceiptPayerName] = useState<string>("");
+  const [receiptAmount, setReceiptAmount] = useState<string>("");
+  const [receiptPaymentFor, setReceiptPaymentFor] = useState<string>("");
+  const [receiptPaymentMethod, setReceiptPaymentMethod] = useState<"Tunai" | "Pindahan Bank" | "Cek" | "Lain-lain">("Tunai");
+  const [receiptDate, setReceiptDate] = useState<string>(() => new Date().toISOString().split("T")[0]);
+
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState<boolean>(() => {
     return localStorage.getItem("sistem_tuntutan_is_admin") === "true";
   });
@@ -460,9 +597,218 @@ export default function App() {
     }
   };
 
+  const fetchFirestoreReceipts = async () => {
+    if (!isAdminLoggedIn) return;
+    setIsReceiptsLoading(true);
+    try {
+      const q = query(collection(db, "receipts"), orderBy("createdAt", "desc"));
+      const querySnapshot = await getDocs(q);
+      const list: ReceiptRecord[] = [];
+      querySnapshot.forEach((doc) => {
+        list.push({ id: doc.id, ...doc.data() } as ReceiptRecord);
+      });
+      setReceiptsList(list);
+    } catch (error) {
+      console.error("Gagal mendapatkan senarai resit dari Firestore:", error);
+      triggerNotification("Gagal mendapatkan senarai resit dari Firestore.", "error");
+    } finally {
+      setIsReceiptsLoading(false);
+    }
+  };
+
+  const handlePreviewDraftReceipt = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isAdminLoggedIn) {
+      triggerNotification("Ralat: Hanya Admin yang dibenarkan mengeluarkan resit.", "error");
+      return;
+    }
+    if (!receiptPayerName.trim() || !receiptAmount || !receiptPaymentFor.trim() || !receiptDate) {
+      triggerNotification("Sila isi semua butiran resit.", "error");
+      return;
+    }
+
+    const amountNum = parseFloat(receiptAmount);
+    if (isNaN(amountNum) || amountNum <= 0) {
+      triggerNotification("Jumlah bayaran mestilah nombor yang sah dan lebih besar daripada 0.", "error");
+      return;
+    }
+
+    const amountWordsStr = `${numberToMalayWords(amountNum)} Ringgit Sahaja`;
+
+    const draftReceipt: ReceiptRecord = {
+      id: "draft",
+      receiptNumber: "RC-DRAFT (BELUM SAH)",
+      date: receiptDate,
+      payerName: receiptPayerName.trim(),
+      amount: amountNum,
+      amountInWords: amountWordsStr,
+      paymentFor: receiptPaymentFor.trim(),
+      paymentMethod: receiptPaymentMethod,
+      receivedBy: adminEmail.split("@")[0] || "Bendahari",
+      createdAt: new Date().toISOString()
+    };
+
+    setPrintingReceiptRecord(draftReceipt);
+    setShowAddReceiptModal(false);
+    triggerNotification("Sila semak pratinjau resit di bawah dan klik 'Sahkan & Simpan'.", "info");
+  };
+
+  const handleSaveReceipt = async () => {
+    if (!isAdminLoggedIn) {
+      triggerNotification("Ralat: Hanya Admin yang dibenarkan mengeluarkan resit.", "error");
+      return;
+    }
+    if (!receiptPayerName.trim() || !receiptAmount || !receiptPaymentFor.trim() || !receiptDate) {
+      triggerNotification("Sila isi semua butiran resit.", "error");
+      return;
+    }
+
+    const amountNum = parseFloat(receiptAmount);
+    if (isNaN(amountNum) || amountNum <= 0) {
+      triggerNotification("Jumlah bayaran mestilah nombor yang sah dan lebih besar daripada 0.", "error");
+      return;
+    }
+
+    setIsReceiptsLoading(true);
+    try {
+      const randNum = Math.floor(100000 + Math.random() * 900000);
+      const receiptNum = `RC-${randNum}`;
+      const docId = `receipt_${Date.now()}`;
+      const amountWordsStr = `${numberToMalayWords(amountNum)} Ringgit Sahaja`;
+
+      const newReceipt: ReceiptRecord = {
+        id: docId,
+        receiptNumber: receiptNum,
+        date: receiptDate,
+        payerName: receiptPayerName.trim(),
+        amount: amountNum,
+        amountInWords: amountWordsStr,
+        paymentFor: receiptPaymentFor.trim(),
+        paymentMethod: receiptPaymentMethod,
+        receivedBy: adminEmail.split("@")[0] || "Bendahari",
+        createdAt: new Date().toISOString()
+      };
+
+      await setDoc(doc(db, "receipts", docId), newReceipt);
+      triggerNotification(`Resit ${receiptNum} berjaya dikeluarkan & disimpan!`, "success");
+      
+      // Update preview record to be the newly saved official receipt record
+      setPrintingReceiptRecord(newReceipt);
+
+      // Reset form & close modal states
+      setReceiptPayerName("");
+      setReceiptAmount("");
+      setReceiptPaymentFor("");
+      setReceiptPaymentMethod("Tunai");
+      setReceiptDate(new Date().toISOString().split("T")[0]);
+      setShowAddReceiptModal(false);
+
+      // Refresh list
+      await fetchFirestoreReceipts();
+    } catch (err) {
+      console.error("Gagal menyimpan resit ke Firestore:", err);
+      triggerNotification("Ralat ketika menyimpan resit ke Firestore.", "error");
+    } finally {
+      setIsReceiptsLoading(false);
+    }
+  };
+
+  const handleDeleteReceipt = async (id: string, receiptNum: string) => {
+    if (!isAdminLoggedIn) {
+      triggerNotification("Ralat: Hanya Admin yang dibenarkan memadam resit.", "error");
+      return;
+    }
+    if (!window.confirm(`Adakah anda pasti mahu memadam resit ${receiptNum}? Tindakan ini tidak boleh diundurkan.`)) {
+      return;
+    }
+
+    setIsReceiptsLoading(true);
+    try {
+      await deleteDoc(doc(db, "receipts", id));
+      triggerNotification(`Resit ${receiptNum} telah dipadam.`, "success");
+      await fetchFirestoreReceipts();
+    } catch (err) {
+      console.error("Gagal memadam resit dari Firestore:", err);
+      triggerNotification("Ralat ketika memadam resit dari Firestore.", "error");
+    } finally {
+      setIsReceiptsLoading(false);
+    }
+  };
+
+  const handleExportReceiptsCSV = () => {
+    if (!isAdminLoggedIn) {
+      triggerNotification("Ralat: Hanya Admin yang dibenarkan mengakses fungsi eksport.", "error");
+      return;
+    }
+    if (receiptsList.length === 0) {
+      triggerNotification("Tiada data resit untuk dieksport.", "info");
+      return;
+    }
+
+    try {
+      const headers = [
+        "No Resit",
+        "Tarikh",
+        "Nama Pembayar",
+        "Jumlah (RM)",
+        "Tujuan Pembayaran",
+        "Cara Pembayaran",
+        "Diterima Oleh",
+        "Jumlah Dalam Perkataan"
+      ];
+
+      const csvRows = receiptsList.map(rec => [
+        `"${rec.receiptNumber.replace(/"/g, '""')}"`,
+        `"${(rec.date || "").replace(/"/g, '""')}"`,
+        `"${rec.payerName.replace(/"/g, '""')}"`,
+        `"${Number(rec.amount || 0).toFixed(2)}"`,
+        `"${rec.paymentFor.replace(/"/g, '""')}"`,
+        `"${rec.paymentMethod.replace(/"/g, '""')}"`,
+        `"${(rec.receivedBy || "").replace(/"/g, '""')}"`,
+        `"${(rec.amountInWords || "").replace(/"/g, '""')}"`
+      ]);
+
+      const BOM = "\uFEFF";
+      const csvContent = BOM + [headers.join(","), ...csvRows.map(row => row.join(","))].join("\n");
+
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", `Senarai_Resit_Bendahari_${new Date().toISOString().split("T")[0]}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      triggerNotification("Senarai resit berjaya dieksport ke format CSV!", "success");
+    } catch (err) {
+      console.error("Gagal mengeksport CSV resit:", err);
+      triggerNotification("Ralat semasa mengeksport resit ke CSV.", "error");
+    }
+  };
+
+  const handleGenerateReceiptFromClaim = (claim: ClaimRecord) => {
+    if (!claim.isApproved) {
+      triggerNotification("Ralat: Hanya baucar yang diluluskan boleh dibuat resit bayaran.", "error");
+      return;
+    }
+    
+    setReceiptPayerName(claim.claimantName);
+    setReceiptAmount(claim.totalAmount.toString());
+    setReceiptPaymentFor(`Tuntutan baucar ${claim.pvNumber}: ${claim.purpose}`);
+    setReceiptPaymentMethod("Pindahan Bank");
+    setReceiptDate(new Date().toISOString().split("T")[0]);
+    setShowAddReceiptModal(true);
+    
+    setSelectedRecordTab("receipts");
+    triggerNotification("Butiran baucar telah disalin secara automatik ke borang resit baru!", "info");
+  };
+
   useEffect(() => {
     if (isAdminLoggedIn && selectedRecordTab === "users") {
       fetchFirestoreUsers();
+    } else if (isAdminLoggedIn && selectedRecordTab === "receipts") {
+      fetchFirestoreReceipts();
     }
   }, [isAdminLoggedIn, selectedRecordTab]);
 
@@ -1022,10 +1368,21 @@ export default function App() {
 
   const processFiles = (files: FileList) => {
     if (isReadOnly) return;
-    const validImageFiles = Array.from(files).filter(file => file.type.startsWith("image/"));
+    
+    const oversizedFiles = Array.from(files).filter(file => file.size > 300 * 1024);
+    if (oversizedFiles.length > 0) {
+      const oversizedNames = oversizedFiles.map(f => f.name).join(", ");
+      triggerNotification(`Ralat: Fail berikut melebihi had saiz 300KB: ${oversizedNames}`, "error");
+    }
+
+    const validImageFiles = Array.from(files).filter(
+      file => file.type.startsWith("image/") && file.size <= 300 * 1024
+    );
     
     if (validImageFiles.length === 0) {
-      triggerNotification("Sila muat naik fail imej resit sahaja (PNG, JPG, JPEG)", "error");
+      if (oversizedFiles.length === 0) {
+        triggerNotification("Sila muat naik fail imej resit sahaja (PNG, JPG, JPEG)", "error");
+      }
       return;
     }
 
@@ -2156,48 +2513,65 @@ export default function App() {
               </div>
             </div>
 
-            {/* Segmented Controls (Personal vs All/Admin vs Users/Admin) */}
-            <div className={`grid ${isAdminLoggedIn ? "grid-cols-3" : "grid-cols-2"} bg-slate-100 p-0.5 rounded-md text-[10px] font-bold mb-3`}>
+            {/* Segmented Controls (Personal vs All/Admin vs Users/Admin vs Receipts) */}
+            <div className="grid grid-cols-4 bg-slate-100 p-0.5 rounded-md text-[9px] font-bold mb-3 gap-0.5">
               <button
                 onClick={() => setSelectedRecordTab("personal")}
-                className={`py-1 rounded-sm transition-all cursor-pointer flex flex-col sm:flex-row items-center justify-center gap-1 ${
+                className={`py-1 rounded-sm transition-all cursor-pointer flex flex-col sm:flex-row items-center justify-center gap-0.5 ${
                   selectedRecordTab === "personal"
                     ? "bg-white text-slate-900 shadow-3xs"
                     : "text-slate-500 hover:text-slate-800"
                 }`}
               >
-                <User className="w-3 h-3" />
-                <span>Tuntutan Saya</span>
+                <User className="w-2.5 h-2.5" />
+                <span>Saya</span>
               </button>
               
               <button
                 onClick={() => setSelectedRecordTab("all")}
-                className={`py-1 rounded-sm transition-all cursor-pointer flex flex-col sm:flex-row items-center justify-center gap-1 ${
+                className={`py-1 rounded-sm transition-all cursor-pointer flex flex-col sm:flex-row items-center justify-center gap-0.5 ${
                   selectedRecordTab === "all"
                     ? "bg-white text-blue-700 shadow-3xs border border-blue-100/50"
                     : "text-slate-500 hover:text-slate-800"
                 }`}
               >
-                <Users className="w-3 h-3" />
-                <span>Semua Rekod</span>
+                <Users className="w-2.5 h-2.5" />
+                <span>Rekod</span>
               </button>
 
-              {isAdminLoggedIn && (
-                <button
-                  onClick={() => setSelectedRecordTab("users")}
-                  className={`py-1 rounded-sm transition-all cursor-pointer flex flex-col sm:flex-row items-center justify-center gap-1 ${
-                    selectedRecordTab === "users"
-                      ? "bg-white text-emerald-700 shadow-3xs border border-emerald-100/50"
-                      : "text-slate-500 hover:text-slate-800"
-                  }`}
-                >
-                  <ShieldCheck className="w-3 h-3 text-emerald-500" />
-                  <span>Pengguna</span>
+              <button
+                onClick={() => setSelectedRecordTab("users")}
+                className={`py-1 rounded-sm transition-all cursor-pointer flex flex-col sm:flex-row items-center justify-center gap-0.5 ${
+                  selectedRecordTab === "users"
+                    ? "bg-white text-emerald-700 shadow-3xs border border-emerald-100/50"
+                    : "text-slate-500 hover:text-slate-800"
+                }`}
+              >
+                <ShieldCheck className="w-2.5 h-2.5 text-emerald-500" />
+                <span>Pengguna</span>
+                {isAdminLoggedIn && usersList.length > 0 && (
                   <span className="bg-emerald-100 text-emerald-700 rounded-full px-1 py-0.2 text-[8px] ml-0.5">
                     {usersList.length}
                   </span>
-                </button>
-              )}
+                )}
+              </button>
+
+              <button
+                onClick={() => setSelectedRecordTab("receipts")}
+                className={`py-1 rounded-sm transition-all cursor-pointer flex flex-col sm:flex-row items-center justify-center gap-0.5 ${
+                  selectedRecordTab === "receipts"
+                    ? "bg-white text-emerald-800 shadow-3xs border border-emerald-100/50"
+                    : "text-slate-500 hover:text-slate-800"
+                }`}
+              >
+                <FileSpreadsheet className="w-2.5 h-2.5 text-emerald-600" />
+                <span>Resit</span>
+                {isAdminLoggedIn && receiptsList.length > 0 && (
+                  <span className="bg-emerald-100 text-emerald-700 rounded-full px-1 py-0.2 text-[8px] ml-0.5">
+                    {receiptsList.length}
+                  </span>
+                )}
+              </button>
             </div>
 
             {isAdminLoggedIn && (
@@ -2212,7 +2586,7 @@ export default function App() {
               </div>
             )}
 
-            {(selectedRecordTab === "all" || selectedRecordTab === "users") && !isAdminLoggedIn ? (
+            {(selectedRecordTab === "all" || selectedRecordTab === "users" || selectedRecordTab === "receipts") && !isAdminLoggedIn ? (
               <div className="flex-1 flex flex-col justify-center items-center p-4 text-center">
                 <div className="w-10 h-10 bg-amber-50 border border-amber-200 rounded-full flex items-center justify-center text-amber-500 mb-3 animate-pulse">
                   <Lock className="w-5 h-5" />
@@ -2303,6 +2677,135 @@ export default function App() {
                         </div>
                       </div>
                     ))
+                  )}
+                </div>
+              </div>
+            ) : selectedRecordTab === "receipts" ? (
+              <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+                <div className="flex justify-between items-center text-[10px] text-slate-500 mb-2 font-bold uppercase tracking-wider shrink-0 gap-2">
+                  <span>Senarai Resit ({receiptsList.length})</span>
+                  <div className="flex items-center gap-1.5">
+                    <button 
+                      onClick={fetchFirestoreReceipts} 
+                      disabled={isReceiptsLoading}
+                      className="text-emerald-600 hover:underline flex items-center gap-0.5 cursor-pointer disabled:opacity-50 text-[9px]"
+                    >
+                      <RefreshCw className={`w-2 h-2 ${isReceiptsLoading ? "animate-spin" : ""}`} /> Segarkan
+                    </button>
+                    <button
+                      onClick={handleExportReceiptsCSV}
+                      className="text-blue-600 hover:underline flex items-center gap-0.5 cursor-pointer text-[9px]"
+                      title="Eksport data resit ke format CSV"
+                    >
+                      <FileSpreadsheet className="w-2.5 h-2.5" /> Eksport CSV
+                    </button>
+                    <button
+                      onClick={() => {
+                        setReceiptPayerName("");
+                        setReceiptAmount("");
+                        setReceiptPaymentFor("");
+                        setReceiptPaymentMethod("Tunai");
+                        setReceiptDate(new Date().toISOString().split("T")[0]);
+                        setShowAddReceiptModal(true);
+                      }}
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider transition-colors cursor-pointer"
+                    >
+                      + Baru
+                    </button>
+                  </div>
+                </div>
+
+                {/* Receipts search input */}
+                <div className="relative mb-2 shrink-0">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                  <input 
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-8 pr-2.5 py-1 text-[11px] bg-slate-50 border border-slate-200 rounded text-slate-700 outline-none focus:bg-white focus:border-slate-300 transition-colors"
+                    placeholder="Cari nama pembayar atau no resit..."
+                  />
+                </div>
+                
+                <div className="flex-1 overflow-y-auto space-y-1.5 pr-0.5">
+                  {isReceiptsLoading && receiptsList.length === 0 ? (
+                    <div className="text-center py-6 text-slate-400 text-[10px] flex flex-col items-center gap-2">
+                      <RefreshCw className="w-4 h-4 animate-spin text-emerald-500" />
+                      <span>Memuatkan senarai resit...</span>
+                    </div>
+                  ) : receiptsList.length === 0 ? (
+                    <div className="text-center py-8 px-4 text-slate-400 text-[10px] border border-dashed border-slate-200 rounded">
+                      Tiada resit berdaftar ditemui. Klik <strong className="text-emerald-700">"+ BARU"</strong> untuk mengeluarkan resit pertama.
+                    </div>
+                  ) : (
+                    (() => {
+                      const queryClean = searchQuery.trim().toLowerCase();
+                      const filteredReceipts = receiptsList.filter(rec => 
+                        rec.payerName.toLowerCase().includes(queryClean) ||
+                        rec.receiptNumber.toLowerCase().includes(queryClean) ||
+                        rec.paymentFor.toLowerCase().includes(queryClean)
+                      );
+                      
+                      if (filteredReceipts.length === 0) {
+                        return (
+                          <div className="text-center py-6 text-slate-400 text-[10px]">
+                            Tiada padanan resit untuk "{searchQuery}".
+                          </div>
+                        );
+                      }
+
+                      return filteredReceipts.map((rec) => (
+                        <div 
+                          key={rec.id} 
+                          className="p-2 bg-emerald-50/40 border border-emerald-100 rounded flex flex-col gap-1.5 hover:bg-emerald-50 transition-colors"
+                        >
+                          <div className="flex justify-between items-start gap-2">
+                            <div className="min-w-0">
+                              <span className="font-mono text-[9px] font-extrabold bg-emerald-100 text-emerald-800 px-1 rounded">
+                                {rec.receiptNumber}
+                              </span>
+                              <span className="text-[8px] text-slate-400 ml-1.5">
+                                {rec.date ? new Date(rec.date).toLocaleDateString("ms-MY") : ""}
+                              </span>
+                            </div>
+                            <span className="font-mono text-[10px] font-black text-emerald-800">
+                              RM {Number(rec.amount || 0).toFixed(2)}
+                            </span>
+                          </div>
+
+                          <div>
+                            <p className="text-[11px] font-black text-slate-800 uppercase leading-tight truncate">
+                              {rec.payerName}
+                            </p>
+                            <p className="text-[9px] text-slate-500 truncate mt-0.5 leading-snug">
+                              {rec.paymentFor}
+                            </p>
+                          </div>
+
+                          <div className="flex justify-between items-center pt-1.5 border-t border-emerald-100/50 mt-1">
+                            <span className="text-[8px] font-semibold text-slate-400 uppercase">
+                              Cara: {rec.paymentMethod}
+                            </span>
+                            <div className="flex items-center gap-1">
+                              <button
+                                onClick={() => {
+                                  setPrintingReceiptRecord(rec);
+                                }}
+                                className="px-1.5 py-0.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[8px] font-black uppercase tracking-wider transition-colors cursor-pointer flex items-center gap-0.5"
+                              >
+                                <Printer className="w-2 h-2" /> Cetak
+                              </button>
+                              <button
+                                onClick={() => handleDeleteReceipt(rec.id, rec.receiptNumber)}
+                                className="px-1.5 py-0.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded text-[8px] font-black uppercase tracking-wider transition-colors cursor-pointer"
+                              >
+                                Padam
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ));
+                    })()
                   )}
                 </div>
               </div>
@@ -2422,106 +2925,108 @@ export default function App() {
           </div>
 
           {/* Panel 2: Receipt Attachments Panel */}
-          <div className="bg-white border border-slate-300 shadow-xs p-4 flex-1 flex flex-col overflow-hidden rounded-sm">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-100 mb-2">
-              <h3 className="text-xs font-black text-slate-700 uppercase tracking-wider">
-                📁 Lampiran Resit ({receipts.length})
-              </h3>
-              
-              {!isReadOnly && (
-                <label className="text-[10px] text-blue-600 font-extrabold hover:underline cursor-pointer flex items-center gap-1">
-                  <Upload className="w-3 h-3" />
-                  <span>Muat Naik</span>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    multiple
-                    accept="image/*"
-                    onChange={handleFileChange}
-                    className="hidden"
-                  />
-                </label>
-              )}
-            </div>
+          {selectedRecordTab !== "users" && selectedRecordTab !== "receipts" && (
+            <div className="bg-white border border-slate-300 shadow-xs p-4 flex-1 flex flex-col overflow-hidden rounded-sm">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-100 mb-2">
+                <h3 className="text-xs font-black text-slate-700 uppercase tracking-wider">
+                  📁 Lampiran Resit ({receipts.length})
+                </h3>
+                
+                {!isReadOnly && (
+                  <label className="text-[10px] text-blue-600 font-extrabold hover:underline cursor-pointer flex items-center gap-1">
+                    <Upload className="w-3 h-3" />
+                    <span>Muat Naik</span>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      multiple
+                      accept="image/*"
+                      onChange={handleFileChange}
+                      className="hidden"
+                    />
+                  </label>
+                )}
+              </div>
 
-            {/* Grid of uploaded receipts / dropzone area */}
-            <div 
-              onDragEnter={!isReadOnly ? handleDrag : undefined}
-              onDragOver={!isReadOnly ? handleDrag : undefined}
-              onDragLeave={!isReadOnly ? handleDrag : undefined}
-              onDrop={!isReadOnly ? handleDrop : undefined}
-              className={`flex-1 overflow-y-auto p-2 rounded-md transition-all ${
-                !isReadOnly ? "border-2 border-dashed" : ""
-              } ${
-                dragActive 
-                  ? "border-emerald-500 bg-emerald-50/30" 
-                  : "border-slate-200 bg-slate-50/20 hover:border-slate-300"
-              }`}
-            >
-              {receipts.length === 0 ? (
-                <div className="h-full flex flex-col items-center justify-center py-6 text-center select-none">
-                  <FileImage className="w-6 h-6 text-slate-300 mb-1" />
-                  <p className="text-[10px] text-slate-400 max-w-[150px] leading-snug">
-                    {isReadOnly ? "Tiada lampiran resit." : "Seret & lepas imej resit di sini untuk lampiran automatik."}
-                  </p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 gap-2">
-                  
-                  {/* Upload box placeholder inside grid */}
-                  {!isReadOnly && (
-                    <div 
-                      onClick={() => fileInputRef.current?.click()}
-                      className="aspect-square bg-slate-50 hover:bg-slate-100 border border-dashed border-slate-300 rounded flex flex-col items-center justify-center gap-1 cursor-pointer transition-all"
-                    >
-                      <span className="text-lg font-bold text-slate-400 leading-none">+</span>
-                      <span className="text-[8px] text-slate-500 uppercase font-black tracking-wider">Tambah</span>
-                    </div>
-                  )}
+              {/* Grid of uploaded receipts / dropzone area */}
+              <div 
+                onDragEnter={!isReadOnly ? handleDrag : undefined}
+                onDragOver={!isReadOnly ? handleDrag : undefined}
+                onDragLeave={!isReadOnly ? handleDrag : undefined}
+                onDrop={!isReadOnly ? handleDrop : undefined}
+                className={`flex-1 overflow-y-auto p-2 rounded-md transition-all ${
+                  !isReadOnly ? "border-2 border-dashed" : ""
+                } ${
+                  dragActive 
+                    ? "border-emerald-500 bg-emerald-50/30" 
+                    : "border-slate-200 bg-slate-50/20 hover:border-slate-300"
+                }`}
+              >
+                {receipts.length === 0 ? (
+                  <div className="h-full flex flex-col items-center justify-center py-6 text-center select-none">
+                    <FileImage className="w-6 h-6 text-slate-300 mb-1" />
+                    <p className="text-[10px] text-slate-400 max-w-[150px] leading-snug">
+                      {isReadOnly ? "Tiada lampiran resit." : "Seret & lepas imej resit di sini untuk lampiran automatik."}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2">
+                    
+                    {/* Upload box placeholder inside grid */}
+                    {!isReadOnly && (
+                      <div 
+                        onClick={() => fileInputRef.current?.click()}
+                        className="aspect-square bg-slate-50 hover:bg-slate-100 border border-dashed border-slate-300 rounded flex flex-col items-center justify-center gap-1 cursor-pointer transition-all"
+                      >
+                        <span className="text-lg font-bold text-slate-400 leading-none">+</span>
+                        <span className="text-[8px] text-slate-500 uppercase font-black tracking-wider">Tambah</span>
+                      </div>
+                    )}
 
-                  {receipts.map((r) => (
-                    <div 
-                      key={r.id} 
-                      className="aspect-square bg-slate-100 rounded border border-slate-200 relative overflow-hidden group shadow-2xs hover:shadow-xs transition-shadow"
-                    >
-                      <img 
-                        src={r.data} 
-                        alt={r.name} 
-                        className="w-full h-full object-cover cursor-zoom-in"
-                        onClick={() => setLightboxImage(r.data)}
-                      />
-                      <div className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5">
-                        <button
-                          type="button"
+                    {receipts.map((r) => (
+                      <div 
+                        key={r.id} 
+                        className="aspect-square bg-slate-100 rounded border border-slate-200 relative overflow-hidden group shadow-2xs hover:shadow-xs transition-shadow"
+                      >
+                        <img 
+                          src={r.data} 
+                          alt={r.name} 
+                          className="w-full h-full object-cover cursor-zoom-in"
                           onClick={() => setLightboxImage(r.data)}
-                          className="p-1 bg-white text-slate-800 rounded-full hover:bg-slate-100 transition-colors cursor-pointer"
-                        >
-                          <Eye className="w-3 h-3" />
-                        </button>
-                        {!isReadOnly && (
+                        />
+                        <div className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5">
                           <button
                             type="button"
-                            onClick={(e) => handleRemoveReceipt(r.id, e)}
-                            className="p-1 bg-rose-600 text-white rounded-full hover:bg-rose-500 transition-colors cursor-pointer"
+                            onClick={() => setLightboxImage(r.data)}
+                            className="p-1 bg-white text-slate-800 rounded-full hover:bg-slate-100 transition-colors cursor-pointer"
                           >
-                            <X className="w-3 h-3" />
+                            <Eye className="w-3 h-3" />
                           </button>
-                        )}
+                          {!isReadOnly && (
+                            <button
+                              type="button"
+                              onClick={(e) => handleRemoveReceipt(r.id, e)}
+                              className="p-1 bg-rose-600 text-white rounded-full hover:bg-rose-500 transition-colors cursor-pointer"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          )}
+                        </div>
+                        <div className="absolute bottom-1 left-1 right-1 bg-slate-950/80 text-white text-[8px] p-0.5 rounded truncate select-none font-mono">
+                          {r.name}
+                        </div>
                       </div>
-                      <div className="absolute bottom-1 left-1 right-1 bg-slate-950/80 text-white text-[8px] p-0.5 rounded truncate select-none font-mono">
-                        {r.name}
-                      </div>
-                    </div>
-                  ))}
+                    ))}
 
-                </div>
-              )}
+                  </div>
+                )}
+              </div>
+
             </div>
-
-          </div>
+          )}
 
           {/* Panel 3: Panel Rujukan Bendahari */}
-          {isAdminLoggedIn && (
+          {isAdminLoggedIn && selectedRecordTab !== "users" && selectedRecordTab !== "receipts" && (
             <div className="bg-gradient-to-br from-emerald-50/50 to-teal-50/20 border border-emerald-300 shadow-xs p-4 rounded-sm flex flex-col shrink-0 gap-2.5">
               <div className="flex items-center justify-between pb-1.5 border-b border-emerald-100/70">
                 <h3 className="text-xs font-black text-emerald-800 uppercase tracking-wider flex items-center gap-1.5">
@@ -2628,9 +3133,23 @@ export default function App() {
                     Luluskan Baucar
                   </button>
                 ) : (
-                  <div className="bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-1.5 rounded text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
-                    <CheckCircle className="w-3.5 h-3.5" />
-                    Telah Diluluskan
+                  <div className="flex items-center gap-1.5">
+                    <div className="bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-1.5 rounded text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 shrink-0">
+                      <CheckCircle className="w-3.5 h-3.5 animate-pulse text-emerald-600" />
+                      Telah Diluluskan
+                    </div>
+                    <button
+                      onClick={() => {
+                        const targetClaim = { ...printingVoucherRecord };
+                        setPrintingVoucherRecord(null);
+                        handleGenerateReceiptFromClaim(targetClaim);
+                      }}
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1.5 rounded text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 cursor-pointer transition-colors shrink-0"
+                      title="Keluarkan resit rasmi bagi bayaran baucar ini"
+                    >
+                      <FileSpreadsheet className="w-3.5 h-3.5" />
+                      Jana Resit
+                    </button>
                   </div>
                 )}
 
@@ -2714,6 +3233,249 @@ export default function App() {
               </button>
               <button 
                 onClick={() => setIsPrintActive(false)} 
+                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
+              >
+                Kembali ke Aplikasi
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- ADD NEW RECEIPT MODAL (ADMIN ONLY) --- */}
+      {showAddReceiptModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 overflow-y-auto no-print">
+          <div className="bg-white rounded-md shadow-xl border border-slate-300 w-full max-w-lg flex flex-col max-h-[90vh]">
+            
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-5 py-3 border-b border-slate-200 bg-slate-50 shrink-0">
+              <div className="flex items-center gap-2 text-slate-800">
+                <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+                <h3 className="text-xs font-black uppercase tracking-wider">Keluar Resit Rasmi Baru</h3>
+              </div>
+              <button
+                onClick={() => setShowAddReceiptModal(false)}
+                className="p-1 hover:bg-slate-200 text-slate-400 hover:text-slate-700 rounded transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Modal Form Body */}
+            <form onSubmit={handlePreviewDraftReceipt} className="flex-1 overflow-y-auto p-5 space-y-4">
+              <div>
+                <label className="block text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                  Nama Pembayar / Payer Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Contoh: Ahmad bin Ibrahim"
+                  value={receiptPayerName}
+                  onChange={(e) => setReceiptPayerName(e.target.value)}
+                  className="w-full text-xs border border-slate-200 focus:border-emerald-500 focus:bg-white bg-slate-50 py-1.5 px-3 rounded outline-none transition-all text-slate-800 uppercase animate-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                    Jumlah (RM) / Amount <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    required
+                    placeholder="Contoh: 150.00"
+                    value={receiptAmount}
+                    onChange={(e) => setReceiptAmount(e.target.value)}
+                    className="w-full text-xs font-mono border border-slate-200 focus:border-emerald-500 focus:bg-white bg-slate-50 py-1.5 px-3 rounded outline-none transition-all text-slate-800"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                    Tarikh / Date <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={receiptDate}
+                    onChange={(e) => setReceiptDate(e.target.value)}
+                    className="w-full text-xs border border-slate-200 focus:border-emerald-500 focus:bg-white bg-slate-50 py-1.5 px-3 rounded outline-none transition-all text-slate-800"
+                  />
+                </div>
+              </div>
+
+              {receiptAmount && !isNaN(parseFloat(receiptAmount)) && parseFloat(receiptAmount) > 0 && (
+                <div className="bg-emerald-50 border border-emerald-100 rounded p-2.5">
+                  <span className="block text-[8px] font-bold text-emerald-800 uppercase tracking-wider mb-0.5">Jumlah dalam perkataan (Auto):</span>
+                  <span className="text-[10px] font-serif italic font-extrabold text-emerald-950 uppercase">
+                    {numberToMalayWords(parseFloat(receiptAmount))} Ringgit Sahaja
+                  </span>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                  Bayaran Untuk / Payment For <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  required
+                  rows={2}
+                  placeholder="Contoh: Yuran Keahlian Bulanan IKRAM Perak Tengah"
+                  value={receiptPaymentFor}
+                  onChange={(e) => setReceiptPaymentFor(e.target.value)}
+                  className="w-full text-xs border border-slate-200 focus:border-emerald-500 focus:bg-white bg-slate-50 py-1.5 px-3 rounded outline-none transition-all text-slate-800"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                  Kaedah Bayaran / Payment Method
+                </label>
+                <select
+                  value={receiptPaymentMethod}
+                  onChange={(e) => setReceiptPaymentMethod(e.target.value as any)}
+                  className="w-full text-xs border border-slate-200 focus:border-emerald-500 focus:bg-white bg-slate-50 py-1.5 px-3 rounded outline-none transition-all text-slate-800 animate-none"
+                >
+                  <option value="Tunai">Tunai (Cash)</option>
+                  <option value="Pindahan Bank">Pindahan Bank (Bank Transfer)</option>
+                  <option value="Cek">Cek (Cheque)</option>
+                  <option value="Lain-lain">Lain-lain</option>
+                </select>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setShowAddReceiptModal(false)}
+                  className="px-4 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded text-[10px] font-bold uppercase tracking-wider transition-colors cursor-pointer"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  disabled={isReceiptsLoading}
+                  className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[10px] font-bold uppercase tracking-wider transition-colors cursor-pointer flex items-center gap-1"
+                >
+                  <Eye className="w-3.5 h-3.5" />
+                  Lihat Pratinjau Resit
+                </button>
+              </div>
+            </form>
+
+          </div>
+        </div>
+      )}
+
+      {/* --- RECEIPT MODAL (ADMIN ONLY PREVIEW) --- */}
+      {printingReceiptRecord && !isReceiptPrintActive && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 overflow-y-auto no-print">
+          <div className="bg-white rounded-md shadow-xl border border-slate-300 w-full max-w-2xl flex flex-col max-h-[90vh]">
+            
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-5 py-3 border-b border-slate-200 bg-slate-50 shrink-0">
+              <div className="flex items-center gap-2 text-slate-800">
+                <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+                <h3 className="text-xs font-black uppercase tracking-wider">Pratinjau Resit Rasmi (Mod Admin)</h3>
+              </div>
+              <div className="flex items-center gap-2">
+                {printingReceiptRecord.id !== "draft" && (
+                  <button
+                    onClick={() => setIsReceiptPrintActive(true)}
+                    className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 transition-colors cursor-pointer"
+                    title="Cetak resit atau simpan sebagai PDF"
+                  >
+                    <Printer className="w-3.5 h-3.5" />
+                    Cetak & Simpan PDF
+                  </button>
+                )}
+                <button
+                  onClick={() => setPrintingReceiptRecord(null)}
+                  className="p-1.5 hover:bg-slate-200 text-slate-400 hover:text-slate-700 rounded transition-colors cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Body */}
+            {printingReceiptRecord.id === "draft" && (
+              <div className="bg-amber-50 border-b border-amber-200 text-amber-800 px-5 py-2.5 text-[10px] font-semibold flex items-center gap-2 shrink-0">
+                <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 animate-bounce" />
+                <span>
+                  <strong>MOD PRATINJAU DRAF:</strong> Resit ini belum disimpan ke dalam sistem. Sila sahkan maklumat di bawah sebelum menekan butang <strong>"Sahkan & Simpan Resit"</strong> di bahagian bawah.
+                </span>
+              </div>
+            )}
+
+            <div className="flex-1 overflow-y-auto p-8 bg-slate-100 flex flex-col items-center gap-4">
+              <div className="w-full max-w-xl bg-white shadow-md p-1 rounded relative">
+                {printingReceiptRecord.id === "draft" && (
+                  <div className="absolute inset-0 border-4 border-amber-500/20 pointer-events-none rounded z-20" />
+                )}
+                <ReceiptPrintSheet receipt={printingReceiptRecord} />
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex justify-end gap-2 px-5 py-3 border-t border-slate-200 bg-slate-50 shrink-0">
+              {printingReceiptRecord.id === "draft" ? (
+                <>
+                  <button
+                    onClick={() => {
+                      setPrintingReceiptRecord(null);
+                      setShowAddReceiptModal(true);
+                    }}
+                    className="px-4 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded text-[10px] font-bold uppercase tracking-wider transition-colors cursor-pointer"
+                  >
+                    Kembali Edit
+                  </button>
+                  <button
+                    onClick={handleSaveReceipt}
+                    disabled={isReceiptsLoading}
+                    className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[10px] font-bold uppercase tracking-wider transition-colors cursor-pointer flex items-center gap-1.5"
+                  >
+                    {isReceiptsLoading ? (
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Check className="w-3.5 h-3.5" />
+                    )}
+                    Sahkan & Simpan Resit
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => setPrintingReceiptRecord(null)}
+                  className="px-4 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded text-[10px] font-bold uppercase tracking-wider transition-colors cursor-pointer"
+                >
+                  Tutup
+                </button>
+              )}
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* --- PURE PRINT VIEW FOR OFFICIAL RECEIPT --- */}
+      {isReceiptPrintActive && printingReceiptRecord && (
+        <div className="fixed inset-0 bg-white z-[9999] overflow-auto flex justify-center p-4 m-0">
+          <div className="w-full max-w-xl">
+            <ReceiptPrintSheet receipt={printingReceiptRecord} />
+            
+            {/* Floating button to exit print view */}
+            <div className="mt-6 flex justify-center gap-3 no-print">
+              <button
+                onClick={() => window.print()}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer flex items-center gap-1.5"
+              >
+                <Printer className="w-4 h-4" />
+                Sahkan Cetakan (Print / PDF)
+              </button>
+              <button 
+                onClick={() => setIsReceiptPrintActive(false)} 
                 className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
               >
                 Kembali ke Aplikasi

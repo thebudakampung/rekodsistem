@@ -33,3 +33,17 @@ export interface ClaimRecord {
   adminNote?: string;
   isApproved?: boolean;
 }
+
+export interface ReceiptRecord {
+  id: string;
+  receiptNumber: string;
+  date: string;
+  payerName: string;
+  amount: number;
+  amountInWords: string;
+  paymentFor: string;
+  paymentMethod: "Tunai" | "Pindahan Bank" | "Cek" | "Lain-lain";
+  receivedBy: string;
+  createdAt: string;
+}
+
