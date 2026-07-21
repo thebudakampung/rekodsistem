@@ -31,4 +31,5 @@ export interface ClaimRecord {
   clientId?: string;
   isLocked?: boolean;
   adminNote?: string;
+  isApproved?: boolean;
 }
