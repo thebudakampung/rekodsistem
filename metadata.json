@@ -1,6 +1,12 @@
 {
-  "name": "Sistem Tuntutan Perbelanjaan",
-  "description": "Sistem pengurusan dan pencetakan borang tuntutan perbelanjaan dengan sokongan lampiran resit, penyimpanan rekod, dan eksport CSV.",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "projectId": "gen-lang-client-0530487281",
+  "appId": "1:779941560935:web:6c3d59f2f37248853e0ac2",
+  "apiKey": "AIzaSyCLS9HD_RkgWtG40dGecFaUnJR3JBYalhI",
+  "authDomain": "gen-lang-client-0530487281.firebaseapp.com",
+  "firestoreDatabaseId": "ai-studio-sistemtuntutanpe-1150ebbe-b430-4a18-87e9-c38ee78803e0",
+  "storageBucket": "gen-lang-client-0530487281.firebasestorage.app",
+  "messagingSenderId": "779941560935",
+  "measurementId": "",
+  "oAuthClientId": "779941560935-tnsrfmfq4md8gqjq1rp6djlq3tb3nbhv.apps.googleusercontent.com",
+  "recaptchaSiteKey": ""
 }

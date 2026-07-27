@@ -1118,11 +1118,8 @@ export default function App() {
   const verifyAdminEmail = (email: string): boolean => {
     const cleanEmail = email.trim().toLowerCase();
     if (!cleanEmail) return false;
-    // Authorized emails
-    if (cleanEmail === "budakampung7@gmail.com") return true;
-    if (cleanEmail.includes("admin")) return true;
-    if (cleanEmail.endsWith("@ikram.org.my") || cleanEmail.endsWith("@ikram.org")) return true;
-    return false;
+    // Hanya email budakampung7@gmail.com dijadikan Admin, selebihnya pemohon
+    return cleanEmail === "budakampung7@gmail.com";
   };
 
   const handleAdminLogin = (e: React.FormEvent) => {
