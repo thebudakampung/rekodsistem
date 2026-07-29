@@ -18,6 +18,7 @@ export interface ClaimRecord {
   claimantPosition: string;
   bankName: string;
   bankAccount: string;
+  whatsappNumber: string;
   purpose: string;
   items: ExpenseItem[];
   receipts: ReceiptAttachment[];
@@ -45,5 +46,6 @@ export interface ReceiptRecord {
   paymentMethod: "Tunai" | "Pindahan Bank" | "Cek" | "Lain-lain";
   receivedBy: string;
   createdAt: string;
+  attachments?: ReceiptAttachment[];
 }
 

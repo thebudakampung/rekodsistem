@@ -24,12 +24,16 @@ import {
   Lock,
   Unlock,
   CheckCircle,
-  Download
+  Download,
+  Paperclip,
+  Pencil,
+  Share2,
+  Copy
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { ExpenseItem, ReceiptAttachment, ClaimRecord, ReceiptRecord } from "./types";
 import { db, auth, googleProvider } from "./firebase";
-import { collection, doc, setDoc, getDocs, deleteDoc, query, orderBy, updateDoc } from "firebase/firestore";
+import { collection, doc, setDoc, getDoc, getDocs, deleteDoc, query, orderBy, updateDoc } from "firebase/firestore";
 import { 
   onAuthStateChanged,
   signInWithPopup,
@@ -374,6 +378,8 @@ interface ReceiptPrintSheetProps {
 }
 
 export function ReceiptPrintSheet({ receipt }: ReceiptPrintSheetProps) {
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+
   return (
     <div className="w-full bg-[#f2f5f2] p-6 text-slate-800 leading-normal font-sans border-2 border-emerald-600 relative rounded-xs text-xs text-left">
       {/* Decorative Stamp Watermark */}
@@ -487,6 +493,54 @@ export function ReceiptPrintSheet({ receipt }: ReceiptPrintSheetProps) {
           </span>
         </div>
       </div>
+
+      {/* Attachments Section */}
+      {receipt.attachments && receipt.attachments.length > 0 && (
+        <div className="mt-8 pt-4 border-t border-dashed border-emerald-600/40">
+          <h4 className="text-[10px] font-black uppercase text-emerald-900 mb-2 flex items-center gap-1">
+            <Paperclip className="w-3.5 h-3.5 text-emerald-700" /> Lampiran Resit / Receipt Attachments ({receipt.attachments.length})
+          </h4>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {receipt.attachments.map((att, idx) => (
+              <div 
+                key={att.id || idx} 
+                onClick={() => setSelectedImage(att.data)}
+                className="bg-white border border-slate-200 hover:border-emerald-500 p-1 rounded text-center cursor-pointer transition-all hover:shadow-xs group"
+              >
+                <div className="relative w-full h-24 bg-slate-50 rounded overflow-hidden mb-1 flex items-center justify-center">
+                  <img
+                    src={att.data}
+                    alt={att.name}
+                    className="w-full h-full object-contain group-hover:scale-105 transition-transform"
+                  />
+                  <div className="absolute inset-0 bg-slate-900/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white no-print">
+                    <Eye className="w-4 h-4" />
+                  </div>
+                </div>
+                <span className="text-[8.5px] text-slate-600 font-mono block truncate px-1" title={att.name}>
+                  {att.name}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Lightbox Modal for Image Attachment */}
+      {selectedImage && (
+        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-xs z-[10000] flex items-center justify-center p-4 no-print">
+          <div className="relative bg-white rounded-lg p-2 max-w-3xl max-h-[90vh] flex flex-col items-center shadow-2xl">
+            <button
+              onClick={() => setSelectedImage(null)}
+              className="absolute -top-3 -right-3 bg-rose-600 text-white p-1.5 rounded-full shadow-md hover:bg-rose-700 transition-colors cursor-pointer z-10"
+              title="Tutup"
+            >
+              <X className="w-4 h-4" />
+            </button>
+            <img src={selectedImage} alt="Lampiran Resit" className="max-w-full max-h-[80vh] object-contain rounded" />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -501,11 +555,12 @@ export default function App() {
   const [claimantPosition, setClaimantPosition] = useState("");
   const [bankName, setBankName] = useState("");
   const [bankAccount, setBankAccount] = useState("");
+  const [whatsappNumber, setWhatsappNumber] = useState("");
   const [purpose, setPurpose] = useState("");
 
   const [items, setItems] = useState<ExpenseItem[]>([
-    { id: "1", description: "Contoh: Tuntutan perjalanan & tol (Lampiran 1)", amount:"120.00" },
-    { id: "2", description: "Contoh: Pembelian barangan program sukan komuniti", amount: "45.50" },
+    { id: "1", description: "", amount: "" },
+    { id: "2", description: "", amount: "" },
     { id: "3", description: "", amount: "" }
   ]);
   
@@ -529,9 +584,12 @@ export default function App() {
   // --- CLOUD DB & ADMIN STATES ---
   const [currentClientId, setCurrentClientId] = useState<string>("");
   const [selectedRecordTab, setSelectedRecordTab] = useState<"personal" | "all" | "users" | "receipts">("personal");
+  const [approvalStatusTab, setApprovalStatusTab] = useState<"pending" | "approved">("pending");
   const [isDbLoading, setIsDbLoading] = useState<boolean>(false);
   const [usersList, setUsersList] = useState<any[]>([]);
   const [isUsersLoading, setIsUsersLoading] = useState<boolean>(false);
+  const [editingUserId, setEditingUserId] = useState<string | null>(null);
+  const [editingUserRole, setEditingUserRole] = useState<"admin" | "user">("user");
   
   // --- RECEIPTS STATES ---
   const [receiptsList, setReceiptsList] = useState<ReceiptRecord[]>([]);
@@ -539,13 +597,71 @@ export default function App() {
   const [printingReceiptRecord, setPrintingReceiptRecord] = useState<ReceiptRecord | null>(null);
   const [isReceiptPrintActive, setIsReceiptPrintActive] = useState<boolean>(false);
   
-  // Receipts Form State (for adding standalone receipts)
+  // Receipts Form State (for adding/editing standalone receipts)
   const [showAddReceiptModal, setShowAddReceiptModal] = useState<boolean>(false);
+  const [editingReceiptId, setEditingReceiptId] = useState<string | null>(null);
   const [receiptPayerName, setReceiptPayerName] = useState<string>("");
   const [receiptAmount, setReceiptAmount] = useState<string>("");
   const [receiptPaymentFor, setReceiptPaymentFor] = useState<string>("");
   const [receiptPaymentMethod, setReceiptPaymentMethod] = useState<"Tunai" | "Pindahan Bank" | "Cek" | "Lain-lain">("Tunai");
   const [receiptDate, setReceiptDate] = useState<string>(() => new Date().toISOString().split("T")[0]);
+  const [receiptAttachments, setReceiptAttachments] = useState<ReceiptAttachment[]>([]);
+
+  const receiptFileInputRef = useRef<HTMLInputElement>(null);
+
+  const processReceiptFiles = (files: FileList) => {
+    const oversizedFiles = Array.from(files).filter(file => file.size > 300 * 1024);
+    if (oversizedFiles.length > 0) {
+      const oversizedNames = oversizedFiles.map(f => f.name).join(", ");
+      triggerNotification(`Ralat: Fail berikut melebihi had saiz 300KB: ${oversizedNames}`, "error");
+    }
+
+    const validImageFiles = Array.from(files).filter(
+      file => file.type.startsWith("image/") && file.size <= 300 * 1024
+    );
+
+    if (validImageFiles.length === 0) {
+      if (oversizedFiles.length === 0) {
+        triggerNotification("Sila muat naik fail imej resit sahaja (PNG, JPG, JPEG)", "error");
+      }
+      return;
+    }
+
+    validImageFiles.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const result = e.target?.result as string;
+        if (result) {
+          setReceiptAttachments(prev => [
+            ...prev,
+            {
+              id: `rec_att_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+              name: file.name,
+              data: result
+            }
+          ]);
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleReceiptFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      processReceiptFiles(e.target.files);
+    }
+  };
+
+  const handleReceiptDrop = (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    if (e.dataTransfer.files) {
+      processReceiptFiles(e.dataTransfer.files);
+    }
+  };
+
+  const handleRemoveReceiptAttachment = (id: string) => {
+    setReceiptAttachments(prev => prev.filter(att => att.id !== id));
+  };
 
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState<boolean>(() => {
     return localStorage.getItem("sistem_tuntutan_is_admin") === "true";
@@ -559,21 +675,97 @@ export default function App() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const SUPER_ADMIN_EMAIL = "budakampung7@gmail.com";
+
   // --- PROFILE REGISTRATION IN FIRESTORE ---
   const registerUserInFirestore = async (user: any) => {
     try {
       const userRef = doc(db, "users", user.uid);
-      const isEmailAdmin = verifyAdminEmail(user.email || "");
+      const userEmail = (user.email || "").trim().toLowerCase();
+      const isSuperAdmin = userEmail === SUPER_ADMIN_EMAIL;
+      
+      const docSnap = await getDoc(userRef);
+      let existingRole = docSnap.exists() ? docSnap.data()?.role : null;
+
+      let roleToSave = "user";
+      if (isSuperAdmin) {
+        roleToSave = "admin";
+      } else if (existingRole) {
+        roleToSave = existingRole;
+      } else {
+        roleToSave = "user"; // Semua pendaftaran baharu secara default bermula sebagai PEMOHON ("user")
+      }
+
       await setDoc(userRef, {
         uid: user.uid,
         name: user.displayName || user.email?.split("@")[0] || "Tiada Nama",
         email: user.email || "",
         photoURL: user.photoURL || "",
         lastActive: new Date().toISOString(),
-        role: isEmailAdmin ? "admin" : (user.isGuest ? "tetamu" : "user")
+        role: roleToSave
       }, { merge: true });
     } catch (err) {
       console.error("Gagal mendaftarkan profil pengguna di Firestore:", err);
+    }
+  };
+
+  const handleUpdateUserRole = async (targetUid: string, targetEmail: string, newRole: "admin" | "user") => {
+    if (!isAdminLoggedIn) {
+      triggerNotification("Ralat: Hanya Admin yang dibenarkan mengemaskini peranan pengguna.", "error");
+      return;
+    }
+
+    if ((targetEmail || "").trim().toLowerCase() === SUPER_ADMIN_EMAIL) {
+      triggerNotification("Peranan Super Admin (budakampung7@gmail.com) adalah mutlak dan tidak boleh diubah!", "error");
+      return;
+    }
+
+    try {
+      setIsUsersLoading(true);
+      const userRef = doc(db, "users", targetUid);
+      await updateDoc(userRef, {
+        role: newRole
+      });
+
+      setUsersList(prev => prev.map(u => u.uid === targetUid ? { ...u, role: newRole } : u));
+      const roleLabel = newRole === "admin" ? "ADMIN" : "PEMOHON";
+      triggerNotification(`Peranan bagi ${targetEmail || "pengguna"} berjaya dikemaskini kepada ${roleLabel}!`, "success");
+    } catch (error) {
+      console.error("Gagal mengemaskini peranan pengguna di Firestore:", error);
+      triggerNotification("Gagal mengemaskini peranan pengguna di Firestore.", "error");
+    } finally {
+      setIsUsersLoading(false);
+      setEditingUserId(null);
+    }
+  };
+
+  const handleDeleteUser = async (targetUid: string, targetEmail: string, targetName: string) => {
+    if (!isAdminLoggedIn) {
+      triggerNotification("Ralat: Hanya Admin yang dibenarkan memadam pengguna.", "error");
+      return;
+    }
+
+    if ((targetEmail || "").trim().toLowerCase() === SUPER_ADMIN_EMAIL) {
+      triggerNotification("Pengguna Super Admin (budakampung7@gmail.com) tidak boleh dipadam!", "error");
+      return;
+    }
+
+    if (!window.confirm(`Adakah anda pasti untuk memadam profil pengguna ${targetName || targetEmail}?`)) {
+      return;
+    }
+
+    try {
+      setIsUsersLoading(true);
+      const userRef = doc(db, "users", targetUid);
+      await deleteDoc(userRef);
+
+      setUsersList(prev => prev.filter(u => u.uid !== targetUid));
+      triggerNotification(`Pengguna ${targetEmail || targetName} berjaya dipadam daripada pangkalan data.`, "success");
+    } catch (error) {
+      console.error("Gagal memadam pengguna dari Firestore:", error);
+      triggerNotification("Gagal memadam pengguna dari Firestore.", "error");
+    } finally {
+      setIsUsersLoading(false);
     }
   };
 
@@ -645,7 +837,8 @@ export default function App() {
       paymentFor: receiptPaymentFor.trim(),
       paymentMethod: receiptPaymentMethod,
       receivedBy: adminEmail.split("@")[0] || "Bendahari",
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      attachments: receiptAttachments
     };
 
     setPrintingReceiptRecord(draftReceipt);
@@ -653,9 +846,20 @@ export default function App() {
     triggerNotification("Sila semak pratinjau resit di bawah dan klik 'Sahkan & Simpan'.", "info");
   };
 
+  const handleStartEditReceipt = (rec: ReceiptRecord) => {
+    setEditingReceiptId(rec.id);
+    setReceiptPayerName(rec.payerName);
+    setReceiptAmount(rec.amount.toString());
+    setReceiptPaymentFor(rec.paymentFor);
+    setReceiptPaymentMethod(rec.paymentMethod);
+    setReceiptDate(rec.date || new Date().toISOString().split("T")[0]);
+    setReceiptAttachments(rec.attachments || []);
+    setShowAddReceiptModal(true);
+  };
+
   const handleSaveReceipt = async () => {
     if (!isAdminLoggedIn) {
-      triggerNotification("Ralat: Hanya Admin yang dibenarkan mengeluarkan resit.", "error");
+      triggerNotification("Ralat: Hanya Admin yang dibenarkan mengeluarkan/mengemas kini resit.", "error");
       return;
     }
     if (!receiptPayerName.trim() || !receiptAmount || !receiptPaymentFor.trim() || !receiptDate) {
@@ -671,36 +875,65 @@ export default function App() {
 
     setIsReceiptsLoading(true);
     try {
-      const randNum = Math.floor(100000 + Math.random() * 900000);
-      const receiptNum = `RC-${randNum}`;
-      const docId = `receipt_${Date.now()}`;
       const amountWordsStr = `${numberToMalayWords(amountNum)} Ringgit Sahaja`;
+      let savedRecord: ReceiptRecord;
 
-      const newReceipt: ReceiptRecord = {
-        id: docId,
-        receiptNumber: receiptNum,
-        date: receiptDate,
-        payerName: receiptPayerName.trim(),
-        amount: amountNum,
-        amountInWords: amountWordsStr,
-        paymentFor: receiptPaymentFor.trim(),
-        paymentMethod: receiptPaymentMethod,
-        receivedBy: adminEmail.split("@")[0] || "Bendahari",
-        createdAt: new Date().toISOString()
-      };
+      if (editingReceiptId) {
+        const existingRec = receiptsList.find(r => r.id === editingReceiptId);
+        const docId = editingReceiptId;
+        const receiptNum = existingRec ? existingRec.receiptNumber : `RC-${Math.floor(100000 + Math.random() * 900000)}`;
+        const createdTime = existingRec ? existingRec.createdAt : new Date().toISOString();
 
-      await setDoc(doc(db, "receipts", docId), newReceipt);
-      triggerNotification(`Resit ${receiptNum} berjaya dikeluarkan & disimpan!`, "success");
+        savedRecord = {
+          id: docId,
+          receiptNumber: receiptNum,
+          date: receiptDate,
+          payerName: receiptPayerName.trim(),
+          amount: amountNum,
+          amountInWords: amountWordsStr,
+          paymentFor: receiptPaymentFor.trim(),
+          paymentMethod: receiptPaymentMethod,
+          receivedBy: existingRec?.receivedBy || (adminEmail.split("@")[0] || "Bendahari"),
+          createdAt: createdTime,
+          attachments: receiptAttachments
+        };
+
+        await setDoc(doc(db, "receipts", docId), savedRecord);
+        triggerNotification(`Resit ${receiptNum} berjaya dikemaskini!`, "success");
+      } else {
+        const randNum = Math.floor(100000 + Math.random() * 900000);
+        const receiptNum = `RC-${randNum}`;
+        const docId = `receipt_${Date.now()}`;
+
+        savedRecord = {
+          id: docId,
+          receiptNumber: receiptNum,
+          date: receiptDate,
+          payerName: receiptPayerName.trim(),
+          amount: amountNum,
+          amountInWords: amountWordsStr,
+          paymentFor: receiptPaymentFor.trim(),
+          paymentMethod: receiptPaymentMethod,
+          receivedBy: adminEmail.split("@")[0] || "Bendahari",
+          createdAt: new Date().toISOString(),
+          attachments: receiptAttachments
+        };
+
+        await setDoc(doc(db, "receipts", docId), savedRecord);
+        triggerNotification(`Resit ${receiptNum} berjaya dikeluarkan & disimpan!`, "success");
+      }
       
       // Update preview record to be the newly saved official receipt record
-      setPrintingReceiptRecord(newReceipt);
+      setPrintingReceiptRecord(savedRecord);
 
       // Reset form & close modal states
+      setEditingReceiptId(null);
       setReceiptPayerName("");
       setReceiptAmount("");
       setReceiptPaymentFor("");
       setReceiptPaymentMethod("Tunai");
       setReceiptDate(new Date().toISOString().split("T")[0]);
+      setReceiptAttachments([]);
       setShowAddReceiptModal(false);
 
       // Refresh list
@@ -711,6 +944,33 @@ export default function App() {
     } finally {
       setIsReceiptsLoading(false);
     }
+  };
+
+  const getReceiptWhatsAppText = (rec: ReceiptRecord) => {
+    const amountStr = Number(rec.amount || 0).toFixed(2);
+    const dateStr = rec.date ? rec.date : "—";
+    return `*RESIT RASMI PERTUBUHAN IKRAM MALAYSIA*\n\n` +
+      `Assalamualaikum / Salam Sejahtera,\n` +
+      `Berikut adalah butiran resit bayaran anda:\n\n` +
+      `📄 *No. Resit:* ${rec.receiptNumber || "—"}\n` +
+      `📅 *Tarikh:* ${dateStr}\n` +
+      `👤 *Diterima Daripada:* ${rec.payerName || "—"}\n` +
+      `💰 *Jumlah:* RM ${amountStr}\n` +
+      `✍️ *Bayaran Untuk:* ${rec.paymentFor || "—"}\n\n` +
+      `Terima kasih atas bayaran/sumbangan anda.`;
+  };
+
+  const handleShareReceiptWhatsApp = (rec: ReceiptRecord) => {
+    const text = getReceiptWhatsAppText(rec);
+    const encoded = encodeURIComponent(text);
+    window.open(`https://api.whatsapp.com/send?text=${encoded}`, "_blank");
+    triggerNotification("Membuka WhatsApp untuk menghantar resit rasmi...", "info");
+  };
+
+  const handleCopyReceiptText = (rec: ReceiptRecord) => {
+    const text = getReceiptWhatsAppText(rec);
+    navigator.clipboard.writeText(text);
+    triggerNotification("Format teks resit rasmi berjaya disalin ke papan klip!", "success");
   };
 
   const handleDeleteReceipt = async (id: string, receiptNum: string) => {
@@ -793,15 +1053,17 @@ export default function App() {
       return;
     }
     
+    setEditingReceiptId(null);
     setReceiptPayerName(claim.claimantName);
     setReceiptAmount(claim.totalAmount.toString());
     setReceiptPaymentFor(`Tuntutan baucar ${claim.pvNumber}: ${claim.purpose}`);
     setReceiptPaymentMethod("Pindahan Bank");
     setReceiptDate(new Date().toISOString().split("T")[0]);
+    setReceiptAttachments(claim.receipts || []);
     setShowAddReceiptModal(true);
     
     setSelectedRecordTab("receipts");
-    triggerNotification("Butiran baucar telah disalin secara automatik ke borang resit baru!", "info");
+    triggerNotification("Butiran baucar & lampiran telah disalin secara automatik ke borang resit baru!", "info");
   };
 
   useEffect(() => {
@@ -822,14 +1084,25 @@ export default function App() {
   const [authError, setAuthError] = useState<string>("");
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         setCurrentUser(user);
         setAuthLoading(false);
         // Register or update user profile details in Firestore
-        registerUserInFirestore(user);
+        await registerUserInFirestore(user);
 
-        const isAdmin = verifyAdminEmail(user.email || "");
+        let isAdmin = verifyAdminEmail(user.email || "");
+        if (!isAdmin) {
+          try {
+            const uSnap = await getDoc(doc(db, "users", user.uid));
+            if (uSnap.exists() && uSnap.data()?.role === "admin") {
+              isAdmin = true;
+            }
+          } catch (e) {
+            console.error("Ralat semakan peranan admin:", e);
+          }
+        }
+
         setIsAdminLoggedIn(isAdmin);
         if (isAdmin) {
           setAdminEmail(user.email || "");
@@ -1118,20 +1391,44 @@ export default function App() {
   const verifyAdminEmail = (email: string): boolean => {
     const cleanEmail = email.trim().toLowerCase();
     if (!cleanEmail) return false;
-    // Authorized emails
-    if (cleanEmail === "budakampung7@gmail.com") return true;
-    if (cleanEmail.includes("admin")) return true;
-    if (cleanEmail.endsWith("@ikram.org.my") || cleanEmail.endsWith("@ikram.org")) return true;
+    if (cleanEmail === SUPER_ADMIN_EMAIL) return true;
+    const foundUser = usersList.find(u => u.email?.trim().toLowerCase() === cleanEmail);
+    if (foundUser && foundUser.role === "admin") return true;
     return false;
   };
 
-  const handleAdminLogin = (e: React.FormEvent) => {
+  const handleAdminLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (verifyAdminEmail(adminEmailInput)) {
+    const cleanInput = adminEmailInput.trim().toLowerCase();
+    if (!cleanInput) {
+      triggerNotification("Sila masukkan e-mel admin.", "error");
+      return;
+    }
+
+    let isAuthorized = cleanInput === SUPER_ADMIN_EMAIL;
+    if (!isAuthorized) {
+      const foundInList = usersList.find(u => u.email?.trim().toLowerCase() === cleanInput);
+      if (foundInList && foundInList.role === "admin") {
+        isAuthorized = true;
+      } else {
+        try {
+          const q = query(collection(db, "users"));
+          const snapshot = await getDocs(q);
+          snapshot.forEach(docSnap => {
+            const data = docSnap.data();
+            if (data.email?.trim().toLowerCase() === cleanInput && data.role === "admin") {
+              isAuthorized = true;
+            }
+          });
+        } catch (err) {}
+      }
+    }
+
+    if (isAuthorized) {
       setIsAdminLoggedIn(true);
-      setAdminEmail(adminEmailInput.trim().toLowerCase());
+      setAdminEmail(cleanInput);
       localStorage.setItem("sistem_tuntutan_is_admin", "true");
-      localStorage.setItem("sistem_tuntutan_admin_email", adminEmailInput.trim().toLowerCase());
+      localStorage.setItem("sistem_tuntutan_admin_email", cleanInput);
       setSelectedRecordTab("all");
       triggerNotification("Log masuk admin berjaya!", "success");
       setAdminEmailInput("");
@@ -1271,6 +1568,7 @@ export default function App() {
     setClaimantPosition("");
     setBankName("");
     setBankAccount("");
+    setWhatsappNumber("");
     setPurpose("");
     
     // Reset items
@@ -1464,6 +1762,10 @@ export default function App() {
       triggerNotification("Ralat: Nama Pemohon (Nama Penuh) adalah mandatori dan wajib diisi.", "error");
       return;
     }
+    if (!whatsappNumber.trim()) {
+      triggerNotification("Sila isi nombor telefon WhatsApp yang sah sebelum menyimpan!", "error");
+      return;
+    }
     if (!bankName.trim()) {
       triggerNotification("Ralat: Nama Bank adalah mandatori dan wajib diisi.", "error");
       return;
@@ -1533,6 +1835,7 @@ export default function App() {
       claimantPosition,
       bankName,
       bankAccount,
+      whatsappNumber,
       purpose,
       items: nonCanceledItems,
       receipts,
@@ -1610,6 +1913,7 @@ export default function App() {
     setClaimantPosition(record.claimantPosition);
     setBankName(record.bankName);
     setBankAccount(record.bankAccount);
+    setWhatsappNumber(record.whatsappNumber || "");
     setPurpose(record.purpose);
     setPreparedBy(record.preparedBy || "");
     setReviewedBy(record.reviewedBy || "");
@@ -1695,7 +1999,7 @@ export default function App() {
       await updateDoc(doc(db, "claims", id), {
         isApproved: true
       });
-      triggerNotification("Baucar berjaya diluluskan dan cop rasmi telah dimuatkan!", "success");
+      triggerNotification("Baucar berjaya diluluskan & dipindahkan secara automatik ke Arkib Rekod Lulus!", "success");
 
       // Update local storage cache
       const localStored = localStorage.getItem("sistem_tuntutan_records");
@@ -1846,17 +2150,27 @@ export default function App() {
     }, 300);
   };
 
-  // --- FILTERED RECORDS ---
-  const filteredRecords = records
-    .filter(r => {
-      // Force personal filtering if not logged in as Admin, regardless of the tab selection
-      if (!isAdminLoggedIn || selectedRecordTab === "personal") {
-        if (currentUser) {
-          return r.clientId === currentUser.uid || r.clientId === currentUser.email || r.clientId === currentClientId;
-        }
-        return r.clientId === currentClientId;
+  // --- FILTERED RECORDS WITH STATUS SEGREGATION ---
+  const scopedRecords = records.filter(r => {
+    // Force personal filtering if not logged in as Admin, regardless of the tab selection
+    if (!isAdminLoggedIn || selectedRecordTab === "personal") {
+      if (currentUser) {
+        return r.clientId === currentUser.uid || r.clientId === currentUser.email || r.clientId === currentClientId;
       }
-      return true; // Show all only if logged in as Admin and selected all tab
+      return r.clientId === currentClientId;
+    }
+    return true; // Show all only if logged in as Admin and selected all tab
+  });
+
+  const pendingRecordsCount = scopedRecords.filter(r => !r.isApproved).length;
+  const approvedRecordsCount = scopedRecords.filter(r => r.isApproved).length;
+
+  const filteredRecords = scopedRecords
+    .filter(r => {
+      if (approvalStatusTab === "approved") {
+        return !!r.isApproved;
+      }
+      return !r.isApproved;
     })
     .filter(r => 
       r.pvNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -2254,7 +2568,7 @@ export default function App() {
             </div>
 
             {/* Claimant Details Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-1">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 mb-1">
               
               <div className="flex flex-col gap-0.5">
                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Nama Pemohon</label>
@@ -2292,7 +2606,21 @@ export default function App() {
                 />
               </div>
 
-              <div className="md:col-span-3 flex flex-col gap-0.5 mt-1.5">
+              <div className="flex flex-col gap-0.5">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">NO. TEL (WhatsApp)</label>
+                <input 
+                  type="text"
+                  value={whatsappNumber}
+                  disabled={isReadOnly}
+                  onChange={(e) => setWhatsappNumber(e.target.value)}
+                  className={`px-2 py-1.5 bg-slate-50 hover:bg-slate-100/50 focus:bg-white border rounded text-xs font-mono font-semibold text-slate-800 outline-none transition-colors disabled:opacity-75 disabled:cursor-not-allowed ${
+                    !whatsappNumber.trim() ? "border-red-400/80 bg-red-50/10" : "border-slate-200"
+                  }`}
+                  placeholder="Contoh: 60123456789"
+                />
+              </div>
+
+              <div className="md:col-span-4 flex flex-col gap-0.5 mt-1.5">
                 <div className="flex items-center justify-between">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Tujuan / Perkara Tuntutan</label>
                   {claimantPosition && (
@@ -2347,7 +2675,13 @@ export default function App() {
                         disabled={isReadOnly}
                         onChange={(e) => handleUpdateItem(item.id, "description", e.target.value)}
                         className="w-full bg-transparent py-1 px-1.5 text-xs text-slate-800 hover:bg-slate-50 focus:bg-white focus:ring-1 focus:ring-slate-300 border border-transparent rounded outline-none transition-all disabled:opacity-75 disabled:cursor-not-allowed"
-                        placeholder="Butiran perbelanjaan atau keterangan transaksi..."
+                        placeholder={
+                          index === 0
+                            ? "Contoh: Tuntutan perjalanan & tol (Lampiran 1)"
+                            : index === 1
+                            ? "Contoh: Pembelian barangan program sukan komuniti"
+                            : "Butiran perbelanjaan atau keterangan transaksi..."
+                        }
                       />
                     </td>
                     <td className="px-3 py-1 text-right border-l border-slate-200 font-mono">
@@ -2360,7 +2694,13 @@ export default function App() {
                           onChange={(e) => handleUpdateItem(item.id, "amount", e.target.value)}
                           onBlur={() => handleAmountBlur(item.id)}
                           className="w-20 bg-transparent py-1 px-1 text-right text-xs font-bold text-slate-800 hover:bg-slate-50 focus:bg-white focus:ring-1 focus:ring-slate-300 border border-transparent rounded outline-none transition-all font-mono disabled:opacity-75 disabled:cursor-not-allowed"
-                          placeholder="0.00"
+                          placeholder={
+                            index === 0
+                              ? "120.00"
+                              : index === 1
+                              ? "45.50"
+                              : "0.00"
+                          }
                         />
                       </div>
                     </td>
@@ -2635,48 +2975,113 @@ export default function App() {
                       Tiada pengguna berdaftar ditemui.
                     </div>
                   ) : (
-                    usersList.map((usr) => (
-                      <div 
-                        key={usr.uid} 
-                        className="p-2 bg-slate-50 border border-slate-200 rounded flex items-center justify-between gap-2.5"
-                      >
-                        <div className="flex items-center gap-2 min-w-0 flex-1">
-                          {usr.photoURL ? (
-                            <img 
-                              src={usr.photoURL} 
-                              alt={usr.name} 
-                              className="w-7 h-7 rounded-full border border-slate-200 shrink-0" 
-                              referrerPolicy="no-referrer"
-                            />
-                          ) : (
-                            <div className="w-7 h-7 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center justify-center font-bold text-[10px] uppercase shrink-0">
-                              {(usr.name || usr.email || "?")[0]}
+                    usersList.map((usr) => {
+                      const isSuperAdmin = (usr.email || "").trim().toLowerCase() === SUPER_ADMIN_EMAIL;
+                      const isEditingThisUser = editingUserId === usr.uid;
+
+                      return (
+                        <div 
+                          key={usr.uid} 
+                          className="p-2 bg-slate-50 border border-slate-200 rounded flex items-center justify-between gap-2.5 hover:bg-slate-100/60 transition-colors"
+                        >
+                          <div className="flex items-center gap-2 min-w-0 flex-1">
+                            {usr.photoURL ? (
+                              <img 
+                                src={usr.photoURL} 
+                                alt={usr.name} 
+                                className="w-7 h-7 rounded-full border border-slate-200 shrink-0" 
+                                referrerPolicy="no-referrer"
+                              />
+                            ) : (
+                              <div className="w-7 h-7 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center justify-center font-bold text-[10px] uppercase shrink-0">
+                                {(usr.name || usr.email || "?")[0]}
+                              </div>
+                            )}
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <p className="text-[11px] font-bold text-slate-900 truncate leading-tight">
+                                  {usr.name || "Pengguna"}
+                                </p>
+                                {isSuperAdmin && (
+                                  <span className="text-[7.5px] font-black uppercase text-indigo-700 bg-indigo-50 border border-indigo-200/80 px-1 rounded shrink-0">
+                                    Super Admin
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-[9px] text-slate-500 font-mono truncate leading-none mt-0.5">
+                                {usr.email}
+                              </p>
                             </div>
-                          )}
-                          <div className="min-w-0 flex-1">
-                            <p className="text-[11px] font-bold text-slate-900 truncate leading-tight">
-                              {usr.name}
-                            </p>
-                            <p className="text-[9px] text-slate-500 font-mono truncate leading-none mt-0.5">
-                              {usr.email}
-                            </p>
+                          </div>
+                          
+                          <div className="text-right shrink-0 flex items-center gap-1.5">
+                            {isEditingThisUser ? (
+                              <div className="flex items-center gap-1">
+                                <select
+                                  value={editingUserRole}
+                                  onChange={(e) => setEditingUserRole(e.target.value as "admin" | "user")}
+                                  className="text-[9px] font-bold bg-white border border-slate-300 rounded px-1 py-0.5 outline-none focus:border-blue-500 text-slate-800"
+                                >
+                                  <option value="user">PEMOHON</option>
+                                  <option value="admin">ADMIN</option>
+                                </select>
+                                <button
+                                  onClick={() => handleUpdateUserRole(usr.uid, usr.email, editingUserRole)}
+                                  className="p-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[9px] font-bold transition-colors cursor-pointer"
+                                  title="Simpan Peranan"
+                                >
+                                  <Check className="w-3 h-3" />
+                                </button>
+                                <button
+                                  onClick={() => setEditingUserId(null)}
+                                  className="p-1 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded text-[9px] font-bold transition-colors cursor-pointer"
+                                  title="Batal"
+                                >
+                                  <X className="w-3 h-3" />
+                                </button>
+                              </div>
+                            ) : (
+                              <>
+                                <div className="text-right">
+                                  <span className={`inline-block text-[8px] font-black uppercase px-1 rounded border leading-normal ${
+                                    usr.role === "admin" 
+                                      ? "text-blue-700 bg-blue-50 border-blue-200" 
+                                      : "text-slate-600 bg-slate-100 border-slate-200"
+                                  }`}>
+                                    {usr.role === "admin" ? "ADMIN" : "PEMOHON"}
+                                  </span>
+                                  <span className="block text-[8px] text-slate-400 mt-0.5" title={usr.lastActive}>
+                                    {usr.lastActive ? new Date(usr.lastActive).toLocaleDateString("ms-MY") : "-"}
+                                  </span>
+                                </div>
+
+                                {!isSuperAdmin && (
+                                  <div className="flex items-center gap-1 shrink-0 ml-0.5">
+                                    <button
+                                      onClick={() => {
+                                        setEditingUserId(usr.uid);
+                                        setEditingUserRole(usr.role === "admin" ? "admin" : "user");
+                                      }}
+                                      className="p-1 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded border border-slate-200 transition-colors cursor-pointer flex items-center justify-center"
+                                      title="Edit Peranan Pengguna"
+                                    >
+                                      <Pencil className="w-2.5 h-2.5 text-slate-600" />
+                                    </button>
+                                    <button
+                                      onClick={() => handleDeleteUser(usr.uid, usr.email, usr.name)}
+                                      className="p-1 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded border border-rose-200/70 transition-colors cursor-pointer flex items-center justify-center"
+                                      title="Padam Pengguna"
+                                    >
+                                      <Trash2 className="w-2.5 h-2.5 text-rose-600" />
+                                    </button>
+                                  </div>
+                                )}
+                              </>
+                            )}
                           </div>
                         </div>
-                        
-                        <div className="text-right shrink-0">
-                          <span className={`inline-block text-[8px] font-black uppercase px-1 rounded border leading-normal ${
-                            usr.role === "admin" 
-                              ? "text-blue-700 bg-blue-50 border-blue-200" 
-                              : "text-slate-600 bg-slate-100 border-slate-200"
-                          }`}>
-                            {usr.role === "admin" ? "Admin" : "Pemohon"}
-                          </span>
-                          <span className="block text-[8px] text-slate-400 mt-1" title={usr.lastActive}>
-                            {usr.lastActive ? new Date(usr.lastActive).toLocaleDateString("ms-MY") : "-"}
-                          </span>
-                        </div>
-                      </div>
-                    ))
+                      );
+                    })
                   )}
                 </div>
               </div>
@@ -2701,11 +3106,13 @@ export default function App() {
                     </button>
                     <button
                       onClick={() => {
+                        setEditingReceiptId(null);
                         setReceiptPayerName("");
                         setReceiptAmount("");
                         setReceiptPaymentFor("");
                         setReceiptPaymentMethod("Tunai");
                         setReceiptDate(new Date().toISOString().split("T")[0]);
+                        setReceiptAttachments([]);
                         setShowAddReceiptModal(true);
                       }}
                       className="bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider transition-colors cursor-pointer"
@@ -2783,17 +3190,45 @@ export default function App() {
                           </div>
 
                           <div className="flex justify-between items-center pt-1.5 border-t border-emerald-100/50 mt-1">
-                            <span className="text-[8px] font-semibold text-slate-400 uppercase">
-                              Cara: {rec.paymentMethod}
-                            </span>
-                            <div className="flex items-center gap-1">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[8px] font-semibold text-slate-400 uppercase">
+                                Cara: {rec.paymentMethod}
+                              </span>
+                              {rec.attachments && rec.attachments.length > 0 && (
+                                <span className="text-[8px] font-extrabold text-emerald-800 bg-emerald-100 border border-emerald-200 px-1 py-0.2 rounded flex items-center gap-0.5" title={`${rec.attachments.length} lampiran resit`}>
+                                  <Paperclip className="w-2.5 h-2.5" /> {rec.attachments.length}
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-1 flex-wrap justify-end">
+                              <button
+                                onClick={() => handleShareReceiptWhatsApp(rec)}
+                                className="px-1.5 py-0.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded text-[8px] font-black uppercase tracking-wider transition-colors cursor-pointer flex items-center gap-0.5"
+                                title="Hantar format resit ke WhatsApp"
+                              >
+                                <Share2 className="w-2 h-2" /> WhatsApp
+                              </button>
+                              <button
+                                onClick={() => handleCopyReceiptText(rec)}
+                                className="px-1.5 py-0.5 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded text-[8px] font-black uppercase tracking-wider transition-colors cursor-pointer flex items-center gap-0.5"
+                                title="Salin format teks resit"
+                              >
+                                <Copy className="w-2 h-2" /> Salin
+                              </button>
                               <button
                                 onClick={() => {
                                   setPrintingReceiptRecord(rec);
                                 }}
-                                className="px-1.5 py-0.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[8px] font-black uppercase tracking-wider transition-colors cursor-pointer flex items-center gap-0.5"
+                                className="px-1.5 py-0.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-[8px] font-black uppercase tracking-wider transition-colors cursor-pointer flex items-center gap-0.5"
                               >
                                 <Printer className="w-2 h-2" /> Cetak
+                              </button>
+                              <button
+                                onClick={() => handleStartEditReceipt(rec)}
+                                className="px-1.5 py-0.5 bg-amber-600 hover:bg-amber-700 text-white rounded text-[8px] font-black uppercase tracking-wider transition-colors cursor-pointer flex items-center gap-0.5"
+                                title="Edit resit & muat naik slip bank"
+                              >
+                                <Pencil className="w-2 h-2" /> Edit
                               </button>
                               <button
                                 onClick={() => handleDeleteReceipt(rec.id, rec.receiptNumber)}
@@ -2811,6 +3246,62 @@ export default function App() {
               </div>
             ) : (
               <>
+                {/* Status Segregation Switch (Belum Selesai vs Arkib Rekod Lulus) */}
+                <div className="flex bg-slate-100 p-0.5 rounded-md text-[9.5px] font-bold mb-2 gap-0.5 border border-slate-200 shrink-0">
+                  <button
+                    onClick={() => setApprovalStatusTab("pending")}
+                    className={`flex-1 py-1.5 px-2 rounded transition-all cursor-pointer flex items-center justify-center gap-1 ${
+                      approvalStatusTab === "pending"
+                        ? "bg-amber-500 text-white shadow-3xs font-black"
+                        : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
+                    }`}
+                  >
+                    <Clock className="w-3 h-3" />
+                    <span className="truncate">Belum Selesai</span>
+                    <span className={`px-1.5 py-0.2 rounded-full text-[8.5px] font-mono leading-none ${
+                      approvalStatusTab === "pending" ? "bg-amber-700 text-white font-extrabold" : "bg-slate-200 text-slate-700 font-bold"
+                    }`}>
+                      {pendingRecordsCount}
+                    </span>
+                  </button>
+
+                  <button
+                    onClick={() => setApprovalStatusTab("approved")}
+                    className={`flex-1 py-1.5 px-2 rounded transition-all cursor-pointer flex items-center justify-center gap-1 ${
+                      approvalStatusTab === "approved"
+                        ? "bg-emerald-600 text-white shadow-3xs font-black"
+                        : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
+                    }`}
+                  >
+                    <CheckCircle className="w-3 h-3" />
+                    <span className="truncate">Arkib Lulus</span>
+                    <span className={`px-1.5 py-0.2 rounded-full text-[8.5px] font-mono leading-none ${
+                      approvalStatusTab === "approved" ? "bg-emerald-800 text-white font-extrabold" : "bg-slate-200 text-slate-700 font-bold"
+                    }`}>
+                      {approvedRecordsCount}
+                    </span>
+                  </button>
+                </div>
+
+                {/* Banner when viewing Approved Archive */}
+                {approvalStatusTab === "approved" && (
+                  <div className="flex items-center justify-between bg-emerald-50 border border-emerald-200/80 rounded px-2 py-1.5 mb-2 text-[9px] text-emerald-900 shrink-0 shadow-3xs">
+                    <span className="font-extrabold flex items-center gap-1 truncate">
+                      <CheckCircle className="w-3 h-3 text-emerald-600 shrink-0" />
+                      <span>Arkib Baucar Diluluskan ({approvedRecordsCount})</span>
+                    </span>
+                    {isAdminLoggedIn && (
+                      <button
+                        onClick={handleExportApprovedCSV}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-black px-2 py-0.5 rounded transition-colors cursor-pointer flex items-center gap-1 text-[8.5px] uppercase tracking-wider shadow-3xs shrink-0"
+                        title="Eksport semua baucar diluluskan ke fail CSV"
+                      >
+                        <FileSpreadsheet className="w-2.5 h-2.5" /> CSV
+                      </button>
+                    )}
+                  </div>
+                )}
+
                 {/* Micro search input */}
                 <div className="relative mb-2 shrink-0">
                   <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
@@ -2819,7 +3310,7 @@ export default function App() {
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="w-full pl-8 pr-2.5 py-1 text-[11px] bg-slate-50 border border-slate-200 rounded text-slate-700 outline-none focus:bg-white focus:border-slate-300 transition-colors"
-                    placeholder={selectedRecordTab === "personal" ? "Cari permohonan saya..." : "Cari nama pemohon, PV..."}
+                    placeholder={approvalStatusTab === "pending" ? "Cari baucar belum selesai..." : "Cari di arkib baucar lulus..."}
                   />
                 </div>
 
@@ -2831,10 +3322,20 @@ export default function App() {
                       <span>Memuat naik data dari awan...</span>
                     </div>
                   ) : filteredRecords.length === 0 ? (
-                    <div className="text-center py-6 text-slate-400 text-[10px]">
-                      {selectedRecordTab === "personal" 
-                        ? "Tiada rekod tuntutan peribadi disimpan di awan." 
-                        : "Tiada sebarang rekod ditemui di dalam Firestore."}
+                    <div className="text-center py-8 text-slate-400 text-[10px] flex flex-col items-center gap-1.5">
+                      {approvalStatusTab === "pending" ? (
+                        <>
+                          <CheckCircle className="w-6 h-6 text-emerald-400 mb-1" />
+                          <span className="font-bold text-slate-600">Tiada baucar belum selesai!</span>
+                          <span className="text-[9px] text-slate-400">Semua baucar bagi pilihan ini telah diluluskan atau tiada permohonan baru.</span>
+                        </>
+                      ) : (
+                        <>
+                          <Clock className="w-6 h-6 text-amber-400 mb-1" />
+                          <span className="font-bold text-slate-600">Tiada baucar dalam Arkib Rekod Lulus</span>
+                          <span className="text-[9px] text-slate-400">Belum ada baucar yang mendapat status kelulusan rasmi.</span>
+                        </>
+                      )}
                     </div>
                   ) : (
                     filteredRecords.map((rec) => (
@@ -2869,6 +3370,15 @@ export default function App() {
                             {rec.isLocked && (
                               <span className="text-[8px] font-bold text-rose-700 bg-rose-50 border border-rose-200/50 px-1 rounded flex items-center gap-0.5 shrink-0" title="Rekod ini telah dikunci oleh Admin">
                                 <Lock className="w-2 h-2" /> Dikunci
+                              </span>
+                            )}
+                            {rec.isApproved ? (
+                              <span className="text-[8px] font-black text-emerald-800 bg-emerald-100 border border-emerald-300 px-1 rounded flex items-center gap-0.5 shrink-0" title="Baucar ini telah mendapat Kelulusan Rasmi">
+                                <CheckCircle className="w-2.5 h-2.5 text-emerald-600" /> DILULUSKAN
+                              </span>
+                            ) : (
+                              <span className="text-[8px] font-extrabold text-amber-800 bg-amber-50 border border-amber-200 px-1 rounded flex items-center gap-0.5 shrink-0" title="Baucar dalam proses / belum diluluskan">
+                                <Clock className="w-2.5 h-2.5 text-amber-600" /> BELUM LULUS
                               </span>
                             )}
                           </div>
@@ -2924,8 +3434,8 @@ export default function App() {
             )}
           </div>
 
-          {/* Panel 2: Receipt Attachments Panel */}
-          {selectedRecordTab !== "users" && selectedRecordTab !== "receipts" && (
+          {/* Panel 2: Receipt Attachments Panel (Hidden in Arkib Lulus tab) */}
+          {selectedRecordTab !== "users" && selectedRecordTab !== "receipts" && approvalStatusTab === "pending" && (
             <div className="bg-white border border-slate-300 shadow-xs p-4 flex-1 flex flex-col overflow-hidden rounded-sm">
               <div className="flex items-center justify-between pb-2 border-b border-slate-100 mb-2">
                 <h3 className="text-xs font-black text-slate-700 uppercase tracking-wider">
@@ -3251,10 +3761,16 @@ export default function App() {
             <div className="flex items-center justify-between px-5 py-3 border-b border-slate-200 bg-slate-50 shrink-0">
               <div className="flex items-center gap-2 text-slate-800">
                 <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
-                <h3 className="text-xs font-black uppercase tracking-wider">Keluar Resit Rasmi Baru</h3>
+                <h3 className="text-xs font-black uppercase tracking-wider">
+                  {editingReceiptId ? "Kemaskini Resit / Slip Bank" : "Keluar Resit Rasmi Baru"}
+                </h3>
               </div>
               <button
-                onClick={() => setShowAddReceiptModal(false)}
+                onClick={() => {
+                  setEditingReceiptId(null);
+                  setReceiptAttachments([]);
+                  setShowAddReceiptModal(false);
+                }}
                 className="p-1 hover:bg-slate-200 text-slate-400 hover:text-slate-700 rounded transition-colors cursor-pointer"
               >
                 <X className="w-4 h-4" />
@@ -3346,10 +3862,77 @@ export default function App() {
                 </select>
               </div>
 
+              {/* Attachment Upload Section */}
+              <div className="pt-2 border-t border-slate-100">
+                <label className="block text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                  Muat Naik Lampiran Resit / Bukti Bayaran (≤ 300KB)
+                </label>
+                <input
+                  type="file"
+                  ref={receiptFileInputRef}
+                  onChange={handleReceiptFileChange}
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                />
+                <div
+                  onClick={() => receiptFileInputRef.current?.click()}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={handleReceiptDrop}
+                  className="border-2 border-dashed border-emerald-300 hover:border-emerald-500 bg-emerald-50/50 hover:bg-emerald-50 p-3 rounded-md text-center cursor-pointer transition-colors"
+                >
+                  <Upload className="w-5 h-5 text-emerald-600 mx-auto mb-1" />
+                  <p className="text-[10px] font-bold text-emerald-900 uppercase">
+                    Klik atau seret fail imej resit / resit bank ke sini
+                  </p>
+                  <p className="text-[8px] text-slate-500 mt-0.5">
+                    PNG, JPG, JPEG sahaja (Maksimum saiz: 300KB setiap fail)
+                  </p>
+                </div>
+
+                {/* Attached Files List */}
+                {receiptAttachments.length > 0 && (
+                  <div className="mt-2 space-y-1.5">
+                    <span className="text-[8.5px] font-bold text-slate-500 uppercase">
+                      Senarai Lampiran Resit ({receiptAttachments.length}):
+                    </span>
+                    <div className="grid grid-cols-3 gap-2">
+                      {receiptAttachments.map((att) => (
+                        <div key={att.id} className="relative bg-slate-50 border border-slate-200 rounded p-1 group">
+                          <img
+                            src={att.data}
+                            alt={att.name}
+                            className="w-full h-16 object-cover rounded bg-white"
+                          />
+                          <p className="text-[8px] text-slate-600 font-mono truncate mt-1 px-0.5" title={att.name}>
+                            {att.name}
+                          </p>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRemoveReceiptAttachment(att.id);
+                            }}
+                            className="absolute top-1 right-1 bg-rose-600 hover:bg-rose-700 text-white p-0.5 rounded-full transition-colors cursor-pointer shadow-xs"
+                            title="Buang lampiran"
+                          >
+                            <X className="w-2.5 h-2.5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <div className="flex justify-end gap-2 pt-3 border-t border-slate-100 shrink-0">
                 <button
                   type="button"
-                  onClick={() => setShowAddReceiptModal(false)}
+                  onClick={() => {
+                    setEditingReceiptId(null);
+                    setReceiptAttachments([]);
+                    setShowAddReceiptModal(false);
+                  }}
                   className="px-4 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded text-[10px] font-bold uppercase tracking-wider transition-colors cursor-pointer"
                 >
                   Batal
@@ -3357,10 +3940,10 @@ export default function App() {
                 <button
                   type="submit"
                   disabled={isReceiptsLoading}
-                  className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[10px] font-bold uppercase tracking-wider transition-colors cursor-pointer flex items-center gap-1"
+                  className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[10px] font-bold uppercase tracking-wider transition-colors cursor-pointer flex items-center gap-1 shadow-xs"
                 >
                   <Eye className="w-3.5 h-3.5" />
-                  Lihat Pratinjau Resit
+                  {editingReceiptId ? "Semak & Simpan Kemaskini" : "Lihat Pratinjau Resit"}
                 </button>
               </div>
             </form>
@@ -3380,16 +3963,34 @@ export default function App() {
                 <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
                 <h3 className="text-xs font-black uppercase tracking-wider">Pratinjau Resit Rasmi (Mod Admin)</h3>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 flex-wrap">
                 {printingReceiptRecord.id !== "draft" && (
-                  <button
-                    onClick={() => setIsReceiptPrintActive(true)}
-                    className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 transition-colors cursor-pointer"
-                    title="Cetak resit atau simpan sebagai PDF"
-                  >
-                    <Printer className="w-3.5 h-3.5" />
-                    Cetak & Simpan PDF
-                  </button>
+                  <>
+                    <button
+                      onClick={() => handleShareReceiptWhatsApp(printingReceiptRecord)}
+                      className="px-2.5 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 transition-colors cursor-pointer"
+                      title="Hantar butiran resit rasmi melalui WhatsApp"
+                    >
+                      <Share2 className="w-3.5 h-3.5" />
+                      WhatsApp
+                    </button>
+                    <button
+                      onClick={() => handleCopyReceiptText(printingReceiptRecord)}
+                      className="px-2.5 py-1.5 bg-slate-700 hover:bg-slate-800 text-white rounded text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 transition-colors cursor-pointer"
+                      title="Salin teks resit rasmi ke papan klip"
+                    >
+                      <Copy className="w-3.5 h-3.5" />
+                      Salin Teks
+                    </button>
+                    <button
+                      onClick={() => setIsReceiptPrintActive(true)}
+                      className="px-2.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 transition-colors cursor-pointer"
+                      title="Cetak resit atau simpan sebagai PDF"
+                    >
+                      <Printer className="w-3.5 h-3.5" />
+                      Cetak & Simpan PDF
+                    </button>
+                  </>
                 )}
                 <button
                   onClick={() => setPrintingReceiptRecord(null)}
